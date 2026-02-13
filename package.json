@@ -1,0 +1,48 @@
+{
+  "name": "@mikegravity/maps",
+  "version": "1.0.0",
+  "description": "Mike's Agentic Programming System - An LLM-powered spec-driven development system for Claude Code",
+  "keywords": [
+    "ai",
+    "llm",
+    "claude",
+    "mcp",
+    "software-development",
+    "spec-driven",
+    "agentic-programming",
+    "code-generation"
+  ],
+  "main": "dist/index.js",
+  "type": "module",
+  "bin": {
+    "maps-server": "./dist/index.js"
+  },
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gravitycar/mike_agentic_programming_system.git"
+  },
+  "author": "Mike",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gravitycar/mike_agentic_programming_system/issues"
+  },
+  "homepage": "https://github.com/gravitycar/mike_agentic_programming_system#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "better-sqlite3": "^12.6.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.2.3",
+    "typescript": "^5.9.3"
+  }
+}
