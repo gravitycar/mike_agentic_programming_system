@@ -222,24 +222,24 @@ EOF
     echo -e "${GREEN}✓${NC} Created .mcp.json with MAPS configuration"
 fi
 
-# Add .maps to .gitignore if it exists
+# Add .maps/maps.db to .gitignore (track docs, ignore database)
 if [ -f "$PROJECT_DIR/.gitignore" ]; then
-    if ! grep -q "^\.maps/$" "$PROJECT_DIR/.gitignore"; then
-        echo -e "${BLUE}Adding .maps/ to .gitignore...${NC}"
+    if ! grep -q "^\.maps/maps\.db$" "$PROJECT_DIR/.gitignore"; then
+        echo -e "${BLUE}Adding .maps/maps.db to .gitignore...${NC}"
         echo "" >> "$PROJECT_DIR/.gitignore"
-        echo "# MAPS working directory" >> "$PROJECT_DIR/.gitignore"
-        echo ".maps/" >> "$PROJECT_DIR/.gitignore"
-        echo -e "${GREEN}✓${NC} Added .maps/ to .gitignore"
+        echo "# MAPS database (docs are tracked)" >> "$PROJECT_DIR/.gitignore"
+        echo ".maps/maps.db" >> "$PROJECT_DIR/.gitignore"
+        echo -e "${GREEN}✓${NC} Added .maps/maps.db to .gitignore"
     else
-        echo -e "${YELLOW}.maps/ already in .gitignore${NC}"
+        echo -e "${YELLOW}.maps/maps.db already in .gitignore${NC}"
     fi
 else
     echo -e "${YELLOW}No .gitignore found, creating one...${NC}"
     cat > "$PROJECT_DIR/.gitignore" <<EOF
-# MAPS working directory
-.maps/
+# MAPS database (docs are tracked)
+.maps/maps.db
 EOF
-    echo -e "${GREEN}✓${NC} Created .gitignore with .maps/"
+    echo -e "${GREEN}✓${NC} Created .gitignore with .maps/maps.db"
 fi
 
 # Verify MAPS server is built
