@@ -196,6 +196,12 @@ When you find an open question during a review:
 task_create parent_id=<review-task-id> type="question" name="[Question subject]" description="[Full question with context and options if applicable]" agent="user"
 ```
 
+Then immediately set the question to `in_progress` so it can be moved to `done` when the user answers it:
+
+```
+task_update task_id=<new-question-id> status="in_progress"
+```
+
 The question task blocks forward progress. The user will resolve it before the workflow continues.
 
 ## Success Criteria
