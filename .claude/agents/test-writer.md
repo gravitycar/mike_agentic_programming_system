@@ -274,3 +274,25 @@ Your action: Change test assertion from expect(task.status).toBe('pending')
 8. Complete: `task_update task_id=<your-task-id> status="done" results="Test revised and re-run: [PASS | FAIL]"`
 
 If tests still fail after your revision, the Critic will triage again in the next iteration of the test/fix loop.
+
+## Working as a Delegated Session
+
+When you are started as a delegated child session (via the Task tool from the /maps orchestrator):
+
+1. **Read your context**: You start with no conversation history. Read all context documents listed in your delegation prompt before beginning work. Your task ID and epic ID are provided in the delegation prompt.
+2. **Use MCP tools**: You have access to all MAPS MCP tools (task_update, artifact_register, artifact_list, config_get, compress).
+3. **Review existing code**: If your delegation prompt lists source files to review, read them to understand the implementation you are testing.
+4. **Follow the return protocol**:
+   - Set task to `in_progress`: `task_update task_id=<id> status="in_progress"`
+   - Do your work (write tests, run them, capture results)
+   - Register artifacts: `artifact_register task_id=<id> artifact_type="test_results" file_path="..."`
+   - Set task to `done`: `task_update task_id=<id> status="done" results="<summary>"`
+5. **Be self-contained**: Do not assume any prior conversation context. Everything you need is in the files listed in your delegation prompt.
+6. **Final message**: Return a brief structured summary:
+   - Status: done/failed
+   - Files created: [test files]
+   - Files modified: [if revising existing tests]
+   - Test results: [total/passed/failed counts]
+   - Failing tests: [brief list if any]
+   - Artifacts registered: [list with types and paths]
+   - Issues: [anything the next task should know]

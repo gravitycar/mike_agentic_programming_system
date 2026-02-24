@@ -10,10 +10,20 @@ MAPS is a **spec-driven development system** that front-loads design decisions t
 
 You coordinate the workflow by:
 1. Finding the next task via `next_task`
-2. Activating the appropriate agent persona for that task
-3. Performing the work
+2. **Delegating agent tasks** to fresh child sessions via the Task tool
+3. Handling human review tasks inline in this conversation
 4. Creating follow-up tasks as needed
 5. Managing loops and human review points
+
+### Session Delegation Model
+
+Each agent task (researcher, architect, developer, critic, test_writer, reviser) is delegated to a **fresh child session** via the Task tool. This keeps each task's context focused and prevents context window degradation over long workflows.
+
+- **Agent tasks** → Delegated to child session (Task tool with `subagent_type="general-purpose"`)
+- **Human review tasks** (`agent="user"`) → Handled inline in this conversation
+- **Orchestration tasks** (creating follow-up tasks, loop counting, crash recovery) → Handled by you directly
+
+You NEVER perform agent work yourself. You construct a delegation prompt, spawn the child, and process its results.
 
 ## Workflow Steps (from 07-workflow.md)
 
@@ -87,38 +97,137 @@ while (true) {
     }
   }
 
-  // Activate agent persona
+  // Route task
   const agent = task.agent;
   if (agent === "user") {
     handle_human_review(task);
   } else {
-    activate_agent_persona(agent);
-    execute_task(task);
+    delegate_to_child_session(task);
   }
+
+  // After task completes, consume results and create follow-up tasks
+  consume_results(task);
+  create_follow_up_tasks(task);
 }
 ```
 
-## Agent Persona Activation
+## Session Delegation
 
-When you encounter a task for an agent, load that agent's persona file:
+When you encounter a task for an agent (any task where `agent` is not `"user"`), delegate it to a fresh child session.
 
-| Agent | Persona File |
-|-------|--------------|
-| researcher | `.claude/agents/researcher.md` |
-| architect | `.claude/agents/architect.md` |
-| developer | `.claude/agents/developer.md` |
-| critic | `.claude/agents/critic.md` |
-| test_writer | `.claude/agents/test-writer.md` |
-| reviser | `.claude/agents/reviser.md` |
+### Step 1: Gather Context
 
-**How to activate:**
-1. Read the persona file from `.claude/agents/[agent].md`
-2. Follow its instructions for the current task
-3. The persona file tells you what inputs to retrieve, what to do, and what to output
+Before delegating, gather the information the child will need:
 
-**Task status management:**
-- Each agent persona handles its own status transitions (`in_progress` → `done`)
-- You don't manually update task status — the persona does that
+1. **Task details**: Call `task_get task_id=<id>` for the full task record
+2. **Epic ID**: Call `config_get key="current_epic_id"`
+3. **Relevant artifacts**: Call `artifact_list` with appropriate filters (see Context Curation table below)
+4. **Source files to review**: From your running list of files created/modified by previous tasks
+
+### Step 2: Construct the Delegation Prompt
+
+Build a prompt with these sections:
+
+```markdown
+You are a MAPS agent executing a single task. You are running as a delegated child
+session — you have NO conversation history. Read all context from the files listed below.
+
+## Your Persona
+Read and follow the instructions in: .claude/agents/<agent>.md
+(Use .claude/agents/test-writer.md for agent="test_writer")
+
+## Your Task
+- Task ID: <id>
+- Task Name: <name>
+- Task Type: <type>
+- Task Description: <description>
+- Epic ID: <epic_id>
+
+## Context Documents
+Read these files for context before beginning your work:
+- <artifact_type>: <file_path>
+- <artifact_type>: <file_path>
+[List all relevant artifact file paths from step 1]
+
+## Source Files to Review
+These files were created or modified by previous tasks. Review them to understand
+established patterns and conventions:
+- <file_path>
+- <file_path>
+[List from your running file tracker — omit this section if no previous files exist]
+
+## Return Protocol
+1. Set task to in_progress: task_update task_id=<id> status="in_progress"
+2. Read your persona file and follow its instructions for this task type
+3. Do your work
+4. Register any artifacts you produce: artifact_register task_id=<id> artifact_type="..." file_path="..."
+5. Set task to done: task_update task_id=<id> status="done" results="<brief summary>"
+6. Return a structured summary as your final message
+```
+
+### Step 3: Spawn the Child Session
+
+Use the Task tool to delegate:
+
+```
+Task(
+  subagent_type="general-purpose",
+  prompt=<constructed delegation prompt>,
+  description="MAPS: <agent> - <task name>"
+)
+```
+
+Wait for the child to complete. It will return a summary of what it did.
+
+### Step 4: Consume Results
+
+After the child returns:
+
+1. **Read the child's return message** for a quick summary
+2. **Verify task completion**: Call `task_get task_id=<id>` to confirm status is `done`
+3. **Discover artifacts**: Call `artifact_list task_id=<id>` to see what was registered
+4. **Update your file tracker**: Note any files created/modified (from the child's summary) for use in future delegation prompts
+5. **Proceed**: Call `next_task()` to continue the workflow
+
+If the child reports failure or the task is not `done`, handle accordingly:
+- Re-read the task and child's summary to understand what went wrong
+- If the child couldn't complete due to missing context, add context and re-delegate
+- If there's a blocking issue, surface it to the user
+
+## Context Curation Table
+
+When gathering artifacts for delegation, use this lookup to determine what each agent/step needs:
+
+| Step | Agent | Artifacts to Include | Notes |
+|------|-------|---------------------|-------|
+| 2 | Researcher (codebase) | — | Only needs epic description and file system access |
+| 3 | Researcher (web) | `codebase_summary` | Codebase summary guides web research |
+| 4 | Architect (spec) | `codebase_summary`, `web_research` | Both research summaries |
+| 5 | Critic (review #1) | `specification` | The spec to review |
+| 8 | Critic (review #2) | `specification`, previous `review_summary` | Revised spec + prior questions |
+| 11 | Architect (catalog) | `specification` | Approved spec |
+| 12 | Developer (plans) | `specification`, `catalog`, `codebase_summary` | Spec, catalog item, research |
+| 13 | Critic (review #3) | `specification`, all `implementation_plan`, previous questions | Spec + all plans |
+| 15 | Developer (build) | `implementation_plan`, `specification` | Plan for this item + spec + source file list |
+| 16 | Test Writer (unit) | `specification`, `implementation_plan` | Spec + plans + built source files |
+| 17a | Critic (triage) | `specification`, `test_results`, `implementation_plan` | Spec + test output + plan + source code |
+| 17b | Reviser | `implementation_plan`, `triage_review`, `test_results`, `specification` | Current plan + triage + test output + spec |
+| 17c | Developer (rebuild) | `implementation_plan` (revised), `specification` | Revised plan + spec + source file list |
+| 17d | Test Writer (revise) | `triage_review`, `specification`, `test_results` | Triage feedback + spec + test files |
+| 18 | Test Writer (integration) | `specification`, `implementation_plan` | Same as step 16 but for integration tests |
+| 19a-d | (same as 17a-d) | (same as 17a-d) | Integration test triage/fix loop |
+
+**Compression**: Before including large documents in the delegation prompt's file list, consider whether the child should compress them. Include this note in the delegation prompt when relevant: "Use the `compress` MCP tool on large documents before using them as working context."
+
+## File Tracker
+
+Maintain a running list of files created and modified by child sessions. After each delegation:
+
+1. Read the child's summary for "Files created" and "Files modified" lists
+2. Add them to your tracker
+3. When constructing future delegation prompts, include relevant files in the "Source Files to Review" section
+
+This allows each subsequent child to understand established patterns without reading the entire codebase. Curate the list — only include files relevant to the next task, not every file ever created.
 
 ## Human Review (agent="user")
 
@@ -160,7 +269,7 @@ User: "Yes, approved"
 git add .maps/docs/[epic-slug]/specification/spec.md
 git commit -m "Approve specification for [epic name]
 
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude <noreply@anthropic.com>"
 
 [Mark sign-off task as done, create catalog task]
 ```
@@ -170,8 +279,8 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 Critical reviews (steps 5, 8, 13) have a **3-iteration hard limit**:
 
 **Loop structure:**
-1. Critic reviews → creates `question` tasks
-2. User resolves questions
+1. Delegate Critic review to child session → child creates `question` tasks
+2. Handle user question resolution inline
 3. Repeat if Critic finds NEW questions
 4. After 3 iterations: pause, surface to user
 
@@ -192,15 +301,15 @@ If the limit is reached:
 Test failures (steps 17, 19) have a **5-iteration hard limit**:
 
 **Loop structure:**
-1. Test Writer runs tests
-2. If failures: Critic triages
-3. Based on triage:
-   - Code wrong → Reviser updates plan → undo code → Developer rebuilds → re-test
-   - Test wrong → Test Writer revises test → re-test
+1. Test Writer runs tests (delegated child session)
+2. If failures: Delegate Critic triage to child session
+3. Read triage result and route:
+   - Code wrong → Delegate Reviser → undo code → Delegate Developer rebuild → re-test
+   - Test wrong → Delegate Test Writer revision → re-test
    - Both wrong → fix code first, then fix test → re-test
 4. Repeat until tests pass or limit reached
 
-**Code undo before rebuild:**
+**Code undo before rebuild (you handle this directly, NOT delegated):**
 ```bash
 # Revert modified files
 git checkout [modified files]
@@ -211,17 +320,17 @@ rm [new files]
 
 **Triage routing:**
 
-Read the Critic's triage review artifact to determine routing:
+After the Critic child completes, read its results to determine routing:
 
-```markdown
-Critic's determination: CODE WRONG
-→ Route to: Reviser (create plan revision task)
+```
+Critic's results contain: "CODE WRONG"
+→ Create and delegate: Reviser task, then Developer rebuild task
 
-Critic's determination: TEST WRONG
-→ Route to: Test Writer (create test revision task)
+Critic's results contain: "TEST WRONG"
+→ Create and delegate: Test Writer revision task
 
-Critic's determination: BOTH WRONG
-→ Route to: Reviser first, then Test Writer
+Critic's results contain: "BOTH WRONG"
+→ Create and delegate: Reviser first, then Developer, then Test Writer
 ```
 
 **Hard limit reached:**
@@ -237,7 +346,7 @@ Critic's determination: BOTH WRONG
 As the workflow progresses, create tasks dynamically:
 
 **After Critic Review #1 (Step 5):**
-- Critic creates `question` tasks (one per open question)
+- Read the Critic child's summary to see how many questions were created
 - Create a human review task (type="human-review", agent="user") to resolve them
 - Block the human review task by all question tasks
 - Create Critic Review #2 task, blocked by human review
@@ -247,7 +356,7 @@ As the workflow progresses, create tasks dynamically:
 - Block it by the sign-off task
 
 **After Catalog (Step 11):**
-- Parse the catalog artifact
+- Read the catalog artifact file
 - For each catalog item: create `plan` task (type="plan", agent="developer")
 - Add blocker relationships based on catalog's "blocked by" notes
 - Create Critic Review #3 task, blocked by all plan tasks
@@ -279,20 +388,6 @@ for (const task of orphaned) {
     agent=task.agent
 }
 ```
-
-## Compression
-
-Before working with documents as context, compress them:
-
-```
-const spec = read_file(spec_path);
-const compressed = compress(text=spec);
-[Use compressed version for working context]
-```
-
-This applies to: specifications, implementation plans, research summaries, catalogs.
-
-Do NOT compress: test results, code, triage reviews (these are already dense).
 
 ## Loop Iteration Tracking
 
@@ -333,13 +428,14 @@ MCP tool errors return error categories. Handle them:
 
 ## Important Reminders
 
-1. **Sequential execution**: You work through tasks one at a time within this conversation
-2. **Agents own their status**: Don't manually set task status — activate the agent persona and it will update its own status
-3. **Documents are shared state**: Agents share context through documents, retrieved via `artifact_list`
-4. **Forward-only status**: Never reopen completed tasks — create new tasks instead
-5. **Epic scoping**: All task/artifact operations are auto-scoped to current_epic_id
-6. **Single pass per task**: Agents don't loop internally — loops are managed by you creating new tasks
-7. **Compression on demand**: Compress documents when loading them into context
+1. **Delegate, don't do**: Agent tasks are ALWAYS delegated to child sessions via the Task tool. You never perform agent work yourself.
+2. **Human review is inline**: Tasks with `agent="user"` are handled directly in this conversation.
+3. **One child at a time**: Never spawn more than one child session simultaneously. Sequential execution only.
+4. **Track files**: Maintain your file tracker so each child gets relevant source file context.
+5. **Forward-only status**: Never reopen completed tasks — create new tasks instead.
+6. **Epic scoping**: All task/artifact operations are auto-scoped to current_epic_id.
+7. **Orchestration stays with you**: Loop counting, follow-up task creation, triage routing, code undo, and crash recovery are YOUR job — never delegated.
+8. **Context is curated**: Use the Context Curation Table to give each child exactly the context it needs, no more.
 
 ## Starting the Workflow
 
@@ -354,8 +450,10 @@ You:
 3. Initialize project (.maps/ directories)
 4. Create initial research tasks
 5. Call next_task
-6. Activate Researcher persona
-7. Begin Step 2 (Codebase Analysis)
+6. Construct delegation prompt for Researcher
+7. Delegate codebase analysis to child session via Task tool
+8. Read child's results, update file tracker
+9. Call next_task, delegate next task, repeat
 ```
 
 Now begin the workflow based on the user's problem statement.

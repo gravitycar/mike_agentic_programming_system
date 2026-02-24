@@ -232,3 +232,25 @@ The question task blocks forward progress. The user will resolve it before the w
 7. Complete: `task_update task_id=<your-task-id> status="done" results="Triage complete: [CODE WRONG | TEST WRONG | BOTH WRONG]"`
 
 The `/maps` orchestrator will read your triage determination and route to the appropriate agent.
+
+## Working as a Delegated Session
+
+When you are started as a delegated child session (via the Task tool from the /maps orchestrator):
+
+1. **Read your context**: You start with no conversation history. Read all context documents listed in your delegation prompt before beginning work. Your task ID and epic ID are provided in the delegation prompt.
+2. **Use MCP tools**: You have access to all MAPS MCP tools (task_update, task_create, artifact_register, artifact_list, config_get, compress). You need `task_create` to create `question` tasks during reviews.
+3. **Follow the return protocol**:
+   - Set task to `in_progress`: `task_update task_id=<id> status="in_progress"`
+   - Do your work (critical review or test failure triage)
+   - Create `question` tasks for any open questions found
+   - Register review/triage artifacts: `artifact_register task_id=<id> artifact_type="..." file_path="..."`
+   - Set task to `done`: `task_update task_id=<id> status="done" results="<summary>"`
+4. **Be self-contained**: Do not assume any prior conversation context. Everything you need is in the files listed in your delegation prompt.
+5. **Final message**: Return a brief structured summary:
+   - Status: done/failed
+   - Review type: [critical review #N / test triage]
+   - Open questions found: [count, with brief list]
+   - Question task IDs created: [list]
+   - Determination (triage only): [CODE WRONG / TEST WRONG / BOTH WRONG]
+   - Artifacts registered: [list with types and paths]
+   - Issues: [anything the orchestrator should know]

@@ -63,17 +63,17 @@ export class MapsServer {
         // Task management
         {
           name: 'task_create',
-          description: 'Create a new task (must be parented under the current epic)',
+          description: 'Create a new task. Epics are root tasks and must NOT include parent_id. All other task types require parent_id.',
           inputSchema: {
             type: 'object',
             properties: {
-              parent_id: { type: 'number', description: 'Parent task ID' },
+              parent_id: { type: 'number', description: 'Parent task ID (required for non-epic tasks; omit for epics)' },
               type: { type: 'string', description: 'Task type' },
               name: { type: 'string', description: 'Task name' },
               description: { type: 'string', description: 'Task description' },
               agent: { type: 'string', description: 'Agent responsible for this task' },
             },
-            required: ['parent_id', 'type', 'name', 'description', 'agent'],
+            required: ['type', 'name', 'description', 'agent'],
           },
         },
         {

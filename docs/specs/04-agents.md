@@ -91,8 +91,23 @@ The **`/maps` command** (the Orchestrator) is a markdown file in `.claude/comman
 
 Individual agent personas focus purely on their own work — they use MCP tools, read/write files, and update their own task status. They do not decide what happens next. The `/maps` command instructions and the task tree handle sequencing.
 
+### Session delegation model
+Agent tasks are delegated to fresh child sessions via Claude Code's Task tool (`subagent_type="general-purpose"`). Each child session:
+
+- Receives a **curated context package** from the Orchestrator: task details, relevant artifact file paths, and a list of source files to review
+- Gets a **fresh context window** — no accumulated conversation history from previous tasks
+- Reads its **agent persona file** (`.claude/agents/<agent>.md`) as its first action
+- **Owns its task lifecycle** — sets `in_progress`, does work, registers artifacts, sets `done`
+- Returns a **structured summary** to the Orchestrator (files created/modified, decisions made, issues)
+
+This replaces the earlier model where all agent personas operated within a single conversation. The change prevents context window degradation over long workflows — each task gets focused context instead of inheriting the full accumulated history.
+
+**Human review tasks** (`agent="user"`) are still handled inline in the Orchestrator's conversation, since they require user interaction.
+
+**The Orchestrator never performs agent work itself** — it only manages task sequencing, constructs delegation prompts, spawns child sessions, and processes results.
+
 ### Context sharing
-Agent personas operate within the same Claude Code conversation, so they share the conversation's context window. However, each persona activation is conceptually independent — personas don't carry state between activations beyond what's in the conversation history. Context is shared through documents (specs, implementation plans, code, test results) retrieved via MCP tools like `artifact_list`. The documents are the durable shared state, not the conversation history.
+Context is shared between agent sessions exclusively through **documents on disk** and the **task/artifact database**. There is no shared conversation history between sessions. Agents retrieve documents via `artifact_list` and file reading. The Orchestrator curates which files each child session should review, based on summaries from previous sessions. Documents are the durable shared state.
 
 ### Test failure triage
 When tests fail, the **Critic** reviews the failing tests against the spec, acceptance criteria, and code to determine the cause:
@@ -105,7 +120,7 @@ This ensures the right agent fixes the right problem.
 ## Open Questions (General Framework)
 1. ~~How does an agent "spawn" a child agent — subprocess? API call? Function call within the framework?~~ **Resolved** — Agents do not spawn other agents. The `/maps` command (Orchestrator) handles all sequencing. It calls `next_task` to find the next available task, activates the appropriate agent persona, and after the task is complete, determines what comes next via the task tree. See "Architecture: two distinct layers" above.
 2. ~~What happens when an agent hits its hard limit without meeting success criteria? How is this surfaced to the user?~~ **Resolved** — The Orchestrator pauses the workflow and surfaces it to the user as a human review step (the same mechanism used for all human interaction points). The persisted state includes what was attempted, iteration count, and the last failure reason. The user can then adjust the approach, raise the limit, or intervene manually.
-3. ~~Do agents share any context, or is each agent's context window completely independent?~~ **Resolved** — Agent personas operate within the same Claude Code conversation, so they share the conversation's context window. However, each persona activation is conceptually independent — personas don't carry state between activations beyond what's in the conversation history and the documents stored in the system. Context is shared through documents (specs, implementation plans, code, test results, etc.) retrieved via MCP tools like `artifact_list`. The documents are the durable shared state.
+3. ~~Do agents share any context, or is each agent's context window completely independent?~~ **Resolved** — Each agent task runs in an independent child session with its own context window. Context is shared exclusively through documents on disk (specs, plans, code, test results) and the task/artifact database, retrieved via `artifact_list` and file reading. The Orchestrator curates which documents and source files each child session receives. There is no shared conversation history between agent sessions — documents are the durable shared state.
 4. ~~How are agent prompts structured? Is there a base prompt template that all agents extend?~~ **Resolved** — Each agent persona markdown file contains the full instructions for that role. The `/maps` command activates a persona by referencing it when working on a task. The persona file defines the agent's mindset, guidelines, and instructions. Task context (description, acceptance criteria) comes from the MCP server via `task_get`. Relevant documents (specs, plans, code) are retrieved via `artifact_list` and file reading tools. There is no base prompt template — each persona file is self-contained, and Claude Code handles context management natively.
 5. ~~How do agents report progress/status back to the system?~~ **Resolved** — Agents update their own task status via MCP tools (`task_update` to set `in_progress`, then `done`). MCP tool calls produce observable state changes in the database (creating documents, updating tasks, registering artifacts). The task tree is the primary progress-tracking mechanism — the `/maps` command can check task statuses to understand where things stand.
 6. ~~Should agents have access to the full project file system, or only to specific files relevant to their task?~~ **Resolved** — Agents have full access to the project file system via the LLM's built-in tools (reading files, writing files, running commands). This autonomy is essential — agents need to inspect existing code, create new files, run tests, etc. The MCP server is not a file system gateway; it manages tasks, blockers, and artifacts. The `artifact_list` MCP tool is a convenience for discovering epic-scoped documentation files, not a bottleneck for all file access.

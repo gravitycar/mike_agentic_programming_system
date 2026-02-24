@@ -90,9 +90,42 @@ Success criteria are per-task-type, defined in the `/maps` command instructions:
 Success criteria are inherent to the workflow step, not the agent role — the same agent may be invoked in different contexts with different criteria.
 
 ## Session Model
-The Orchestrator is not a separate process. It is Claude Code following the `/maps` command instructions within a conversation session. It runs for as long as the session is active. If the session ends, the user starts a new session and re-invokes `/maps` to continue — `next_task` picks up where things left off.
+The Orchestrator is Claude Code following the `/maps` command instructions within a conversation session. It runs for as long as the session is active. If the session ends, the user starts a new session and re-invokes `/maps` to continue — `next_task` picks up where things left off.
 
-Execution is sequential: there is only one Claude conversation, so tasks are worked through one at a time. The task tree's dependency system ensures `next_task` returns the right next task. Parallel execution could be revisited later but would require a fundamentally different architecture (multiple Claude Code sessions or spawning subagents).
+### Session Delegation
+
+Agent tasks are **delegated to fresh child sessions** via Claude Code's Task tool (`subagent_type="general-purpose"`). This prevents context window degradation over long workflows.
+
+**Execution model:**
+- The Orchestrator calls `next_task()` to find work
+- For agent tasks: constructs a delegation prompt and spawns a child session via Task tool
+- For human review tasks: handles inline in its own conversation
+- One child at a time — sequential execution, never parallel
+- After each child completes, the Orchestrator reads results and proceeds
+
+**Delegation prompt contents:**
+- Task ID, name, type, description, epic ID
+- Path to agent persona file (`.claude/agents/<agent>.md`)
+- File paths to relevant artifacts (from `artifact_list`, curated per step)
+- List of source files to review (accumulated from previous task summaries)
+- Return protocol instructions (set in_progress, do work, register artifacts, set done)
+
+**Why delegation improves output quality:**
+- Each child session gets a **fresh context window** with only relevant context (~20-40K tokens vs. 200K+ accumulated)
+- No context compaction artifacts — earlier decisions aren't lossy-compressed
+- The codebase serves as shared truth — each child reads actual files, not conversation memory
+- Failure is isolated — a crashed child loses only one task's work
+
+**What the Orchestrator handles directly (never delegated):**
+- Human review tasks (user interaction)
+- Follow-up task creation and blocker management
+- Loop iteration counting and hard limit enforcement
+- Triage routing decisions (reading Critic results, creating appropriate next tasks)
+- Code undo before rebuilds (`git checkout` + file deletion)
+- Crash recovery (orphaned task detection)
+
+**File tracker:**
+The Orchestrator maintains a running list of files created/modified by child sessions. This allows each subsequent child to review relevant established patterns without scanning the entire codebase.
 
 ## Open Questions
 1. ~~How does the Orchestrator persist workflow state so it can survive process restarts? Is the task tree in the database sufficient, or do we need additional state?~~ **Resolved** — The task tree in the database is sufficient. An epic's progress is fully represented by its tasks' statuses — `done` tasks are complete, `open` tasks are ready, `blocked` tasks are waiting. On restart, `next_task` picks up where the process left off. Loop iteration counts are derived from the task tree (count completed sibling tasks of the same type under the parent). **Crash recovery**: On startup, the Orchestrator checks for any `in_progress` tasks. These are orphaned from a previous crash. For each, the Orchestrator sets the orphaned task's status to `orphaned` (a terminal state) and creates a new replacement task with additional context explaining that a previous attempt appears to have failed, so the agent should carefully examine the state of the file system to determine what, if anything, was already done.
@@ -103,7 +136,7 @@ Execution is sequential: there is only one Claude conversation, so tasks are wor
 6. ~~How does the Orchestrator handle the "undo" of code changes before a rebuild? Does it run git commands directly, or delegate to a utility?~~ **Resolved** — Claude uses direct git and file system access. Modified files are reverted via `git checkout`, and new files are deleted from the file system. No separate utility or abstraction is needed — Claude already has full access to both git and the file system via its built-in tools.
 7. ~~How does the Orchestrator determine success criteria for each agent's loop? Are these defined per-agent, per-task-type, or globally?~~ **Resolved** — Per-task-type, defined in the `/maps` command instructions. Examples: critical review loop succeeds when the Critic finds zero new open questions; test/fix loop succeeds when all tests pass; spec review loop succeeds when the user signs off. Success criteria are inherent to the workflow step, not the agent role — the same agent may be invoked in different contexts with different criteria.
 8. ~~What are the default hard limits for each type of loop (review loops, test/fix loops)?~~ **Resolved** — Default hard limits: (1) **Critical review loop** (Critic finds questions → user answers → Critic re-reviews): 3 iterations. If the Critic is still finding new questions after 3 rounds, something deeper is wrong and needs human intervention. (2) **Test/fix loop** (test → triage → fix → retest): 5 iterations. Code fixes can take a few attempts. (3) **Spec review loop** (user feedback → revise → re-review): no hard limit — this is human-driven and ends when the user signs off.
-9. ~~Should the Orchestrator support running multiple non-blocking agents in parallel (e.g., building independent implementation plans simultaneously)?~~ **Resolved** — No, not for the initial implementation. With the Claude Code persona model, there is only one Claude conversation — it cannot truly run agents in parallel. Claude works through tasks sequentially, and the task tree's dependency system ensures it picks up the right next task via `next_task`. Independent tasks are built one after the other. Parallel execution could be revisited later if it becomes a bottleneck, but would require a fundamentally different architecture (multiple Claude Code sessions or spawning subagents).
+9. ~~Should the Orchestrator support running multiple non-blocking agents in parallel (e.g., building independent implementation plans simultaneously)?~~ **Resolved** — Sequential execution with session delegation. Each agent task is delegated to a fresh child session via the Task tool (`subagent_type="general-purpose"`), one at a time. This gives each task a focused context window without the complexity of parallel execution (git conflicts, concurrent DB access, cross-task coherence issues). The task tree's dependency system ensures `next_task` returns the right next task. True parallel execution (multiple simultaneous children) was considered but rejected — the sequential model avoids git conflicts and ensures each subsequent child can see the actual code produced by previous children.
 
 ## Dependencies
 - [04-agents.md](04-agents.md) — The `/maps` command activates agent personas defined in the agent framework.

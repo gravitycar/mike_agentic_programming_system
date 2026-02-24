@@ -185,3 +185,23 @@ The `/maps` orchestrator will:
 - Assign the Test Writer to re-run tests
 
 If tests still fail, the Critic will triage again. If the issue is still with the code (and the plan), you'll revise again. This continues for up to 5 iterations.
+
+## Working as a Delegated Session
+
+When you are started as a delegated child session (via the Task tool from the /maps orchestrator):
+
+1. **Read your context**: You start with no conversation history. Read all context documents listed in your delegation prompt before beginning work. Your task ID and epic ID are provided in the delegation prompt.
+2. **Use MCP tools**: You have access to all MAPS MCP tools (task_update, artifact_register, artifact_list, config_get, compress).
+3. **Follow the return protocol**:
+   - Set task to `in_progress`: `task_update task_id=<id> status="in_progress"`
+   - Do your work (revise the implementation plan based on triage feedback)
+   - Register the revised plan: `artifact_register task_id=<id> artifact_type="implementation_plan" file_path="..."`
+   - Set task to `done`: `task_update task_id=<id> status="done" results="<summary>"`
+4. **Be self-contained**: Do not assume any prior conversation context. Everything you need is in the files listed in your delegation prompt.
+5. **Final message**: Return a brief structured summary:
+   - Status: done/failed
+   - Files created: [revised plan file]
+   - Artifacts registered: [list with types and paths]
+   - What was revised: [brief description of the fix applied to the plan]
+   - Cascading effects: [any other parts of the plan that may be affected]
+   - Issues: [anything the next task should know]

@@ -8,7 +8,7 @@ The system is **spec-driven**: it front-loads design decisions through iterative
 
 ## Project Status
 
-**Design phase.** All specifications are written and all 105 open questions are resolved. No implementation code exists yet. The next step is to build from these specs.
+**Implementation phase.** All specifications are written and all 105 open questions are resolved. The MCP server, database layer, compressor, agent personas, orchestrator command, and setup script are implemented.
 
 ## Architecture
 
@@ -45,7 +45,7 @@ Two distinct layers with a clear separation of concerns:
 - **Intelligence**: Claude Code + agent personas (markdown) — handles all reasoning, writing, coding
 - **Infrastructure**: MCP Server + SQLite — handles all state management, task sequencing, validation
 
-Agents are Claude Code personas (markdown files in `.claude/agents/`), NOT separate processes or TypeScript classes. The `/maps` command activates the appropriate persona for each workflow step. Claude Code IS the orchestrator.
+Agents are Claude Code personas (markdown files in `.claude/agents/`), NOT separate processes or TypeScript classes. Each agent task is **delegated to a fresh child session** via the Task tool (`subagent_type="general-purpose"`), giving each task a focused context window. The `/maps` command orchestrates the workflow, delegating agent tasks and handling human review inline. Claude Code IS the orchestrator.
 
 This architecture was adopted after reviewing the [Agent Fabric](https://github.com/reliable/agent-fabric) project.
 
@@ -174,12 +174,14 @@ Forward-only. Never reopen completed tasks — create new ones instead.
 
 1. **Claude Code IS the orchestrator** — no separate TypeScript process, no standalone CLI
 2. **Agents are personas, not processes** — markdown files in `.claude/agents/`, not TypeScript classes
-3. **Task tree drives sequencing** — `next_task` + blocker dependencies, not hardcoded step logic
-4. **Documents are shared state** — agents share context through documents on disk, not conversation history
-5. **MCP server is the only DB gateway** — all validation at application level, DB enforces only foreign keys
-6. **Forward-only status lifecycle** — completed tasks are never reopened; create new tasks instead
-7. **Epic scoping** — all operations auto-scoped to current epic via config table
-8. **Compression on demand** — documents stored human-friendly, compressed when loaded into context
+3. **Session delegation** — each agent task delegated to a fresh child session via Task tool, preventing context window degradation
+4. **One child at a time** — sequential delegation, never parallel; each child sees code produced by previous children
+5. **Task tree drives sequencing** — `next_task` + blocker dependencies, not hardcoded step logic
+6. **Documents are shared state** — agents share context through documents on disk, not conversation history
+7. **MCP server is the only DB gateway** — all validation at application level, DB enforces only foreign keys
+8. **Forward-only status lifecycle** — completed tasks are never reopened; create new tasks instead
+9. **Epic scoping** — all operations auto-scoped to current epic via config table
+10. **Compression on demand** — documents stored human-friendly, compressed when loaded into context
 
 ## Technology Stack
 

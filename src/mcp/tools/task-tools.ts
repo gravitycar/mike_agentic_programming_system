@@ -60,10 +60,20 @@ function isTaskInEpic(
   return false;
 }
 
+function taskGetById(db: Database.Database, taskId: number): Task {
+  const task = db
+    .prepare('SELECT * FROM tasks WHERE id = ?')
+    .get(taskId) as Task | undefined;
+  if (!task) {
+    throw new NotFoundError(`Task ${taskId} not found`);
+  }
+  return task;
+}
+
 export function taskCreate(
   db: Database.Database,
   params: {
-    parent_id: number;
+    parent_id?: number | null;
     type: string;
     name: string;
     description: string;
@@ -71,7 +81,6 @@ export function taskCreate(
   }
 ): Task {
   // Validate required params
-  validateRequired(params.parent_id, 'parent_id');
   validateRequired(params.type, 'type');
   validateRequired(params.name, 'name');
   validateRequired(params.description, 'description');
@@ -79,23 +88,37 @@ export function taskCreate(
 
   // Validate types
   const type = validateTaskType(params.type);
-  validatePositiveInteger(params.parent_id, 'parent_id');
 
-  // Verify parent exists
-  const parent = db
-    .prepare('SELECT id, type FROM tasks WHERE id = ?')
-    .get(params.parent_id) as { id: number; type: string } | undefined;
+  // Epics are root tasks and must not have a parent_id.
+  // All other task types require a parent_id.
+  const isEpic = type === 'epic';
 
-  if (!parent) {
-    throw new NotFoundError(`Parent task ${params.parent_id} not found`);
-  }
+  if (isEpic) {
+    if (params.parent_id != null) {
+      throw new ValidationError('Epics cannot have a parent_id');
+    }
+  } else {
+    if (params.parent_id == null) {
+      throw new ValidationError('parent_id is required for non-epic tasks');
+    }
+    validatePositiveInteger(params.parent_id, 'parent_id');
 
-  // Verify parent is in current epic
-  const epicId = getCurrentEpicId(db);
-  if (!isTaskInEpic(db, params.parent_id, epicId)) {
-    throw new RuleViolationError(
-      `Parent task ${params.parent_id} does not belong to current epic ${epicId}`
-    );
+    // Verify parent exists
+    const parent = db
+      .prepare('SELECT id, type FROM tasks WHERE id = ?')
+      .get(params.parent_id) as { id: number; type: string } | undefined;
+
+    if (!parent) {
+      throw new NotFoundError(`Parent task ${params.parent_id} not found`);
+    }
+
+    // Verify parent is in current epic
+    const epicId = getCurrentEpicId(db);
+    if (!isTaskInEpic(db, params.parent_id, epicId)) {
+      throw new RuleViolationError(
+        `Parent task ${params.parent_id} does not belong to current epic ${epicId}`
+      );
+    }
   }
 
   const now = new Date().toISOString();
@@ -112,7 +135,7 @@ export function taskCreate(
        VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, NULL)`
     )
     .run(
-      params.parent_id,
+      params.parent_id ?? null,
       type,
       params.name,
       params.description,
@@ -124,7 +147,7 @@ export function taskCreate(
 
   const taskId = result.lastInsertRowid as number;
 
-  return taskGet(db, { task_id: taskId });
+  return taskGetById(db, taskId);
 }
 
 export function taskGet(

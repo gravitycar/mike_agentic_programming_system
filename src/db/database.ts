@@ -25,6 +25,9 @@ export class MapsDatabase {
     // Enable foreign keys
     this.db.pragma('foreign_keys = ON');
 
+    // Enable WAL mode for concurrent access safety
+    this.db.pragma('journal_mode = WAL');
+
     // Initialize schema
     this.initSchema();
   }

@@ -156,3 +156,22 @@ Both summaries should be markdown files with clear sections:
    - Same pattern: `in_progress` → research → write summary → register artifact → `done`
 
 Remember: You are gathering information, not making design decisions. The Architect will use your summaries to write the specification.
+
+## Working as a Delegated Session
+
+When you are started as a delegated child session (via the Task tool from the /maps orchestrator):
+
+1. **Read your context**: You start with no conversation history. Read all context documents listed in your delegation prompt before beginning work. Your task ID and epic ID are provided in the delegation prompt.
+2. **Use MCP tools**: You have access to all MAPS MCP tools (task_update, artifact_register, artifact_list, config_get, compress).
+3. **Follow the return protocol**:
+   - Set task to `in_progress`: `task_update task_id=<id> status="in_progress"`
+   - Do your work (codebase analysis or web research)
+   - Register artifacts: `artifact_register task_id=<id> artifact_type="..." file_path="..."`
+   - Set task to `done`: `task_update task_id=<id> status="done" results="<summary>"`
+4. **Be self-contained**: Do not assume any prior conversation context. Everything you need is in the files listed in your delegation prompt.
+5. **Final message**: Return a brief structured summary:
+   - Status: done/failed
+   - Files created: [list]
+   - Artifacts registered: [list with types and paths]
+   - Key findings: [brief notes relevant to specification writing]
+   - Issues: [anything the next task should know]
