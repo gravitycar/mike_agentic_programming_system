@@ -17,7 +17,7 @@ You coordinate the workflow by:
 
 ### Session Delegation Model
 
-Each agent task (researcher, architect, developer, critic, test_writer, reviser) is delegated to a **fresh child session** via the Task tool. This keeps each task's context focused and prevents context window degradation over long workflows.
+Each agent task (researcher, architect, developer, critic, test_writer, reviser, llm_security_auditor) is delegated to a **fresh child session** via the Task tool. This keeps each task's context focused and prevents context window degradation over long workflows.
 
 - **Agent tasks** → Delegated to child session (Task tool with `subagent_type="general-purpose"`)
 - **Human review tasks** (`agent="user"`) → Handled inline in this conversation
@@ -35,10 +35,18 @@ You NEVER perform agent work yourself. You construct a delegation prompt, spawn 
 6-7. **User** — Reviews spec + resolves open questions
 8. **Critic** — Critical Review #2
 9-10. **User** — Addresses questions + signs off (git commit)
+10a. **LLM Security Auditor** — LLM Security Review of Specification (skips if no LLM integration)
+10b. **User** — Resolves security questions (skips if 10a found no issues)
+10c. **LLM Security Auditor** — LLM Security Review iteration #2 (only if 10b produced changes; 2-iteration hard limit)
+10d. **User** — Resolves remaining security questions (skips if 10c found no issues)
 11. **Architect** — Builds implementation catalog
 12. **Developer** — Writes implementation plans
 13. **Critic** — Critical Review #3
 14. **User** — Resolves remaining questions
+14a. **LLM Security Auditor** — LLM Security Review of Implementation Plans (skips if no LLM integration)
+14b. **User** — Resolves security questions on plans (skips if 14a found no issues)
+14c. **LLM Security Auditor** — LLM Security Review of Plans iteration #2 (only if 14b produced changes; 2-iteration hard limit)
+14d. **User** — Resolves remaining security questions on plans (skips if 14c found no issues)
 15. **Developer** — Builds code from plans
 16. **Test Writer** — Writes and runs unit tests
 17. **Critic/Reviser/Developer/Test Writer** — Test failure triage/fix loop
@@ -135,6 +143,7 @@ session — you have NO conversation history. Read all context from the files li
 ## Your Persona
 Read and follow the instructions in: .claude/agents/<agent>.md
 (Use .claude/agents/test-writer.md for agent="test_writer")
+(Use .claude/agents/llm-security-auditor.md for agent="llm_security_auditor")
 
 ## Your Task
 - Task ID: <id>
@@ -205,9 +214,13 @@ When gathering artifacts for delegation, use this lookup to determine what each 
 | 4 | Architect (spec) | `codebase_summary`, `web_research` | Both research summaries |
 | 5 | Critic (review #1) | `specification` | The spec to review |
 | 8 | Critic (review #2) | `specification`, previous `review_summary` | Revised spec + prior questions |
+| 10a | LLM Security Auditor (spec) | `specification`, resolved questions | Approved spec + codebase access for security audit |
+| 10c | LLM Security Auditor (spec #2) | `specification`, `security_review`, resolved questions | Spec + prior security review + user responses |
 | 11 | Architect (catalog) | `specification` | Approved spec |
 | 12 | Developer (plans) | `specification`, `catalog`, `codebase_summary` | Spec, catalog item, research |
 | 13 | Critic (review #3) | `specification`, all `implementation_plan`, previous questions | Spec + all plans |
+| 14a | LLM Security Auditor (plans) | `specification`, all `implementation_plan`, `security_review` (spec-level), resolved questions | Spec + all plans + prior security review |
+| 14c | LLM Security Auditor (plans #2) | `specification`, all `implementation_plan`, `security_review` (both), resolved questions | Spec + plans + both security reviews + user responses |
 | 15 | Developer (build) | `implementation_plan`, `specification` | Plan for this item + spec + source file list |
 | 16 | Test Writer (unit) | `specification`, `implementation_plan` | Spec + plans + built source files |
 | 17a | Critic (triage) | `specification`, `test_results`, `implementation_plan` | Spec + test output + plan + source code |
@@ -296,6 +309,53 @@ If the limit is reached:
 [Present questions to user, get decisions]
 ```
 
+## LLM Security Review Loop
+
+LLM security reviews (steps 10a-10d and 14a-14d) have a **2-iteration hard limit** and are **conditional** — they only run if the epic involves LLM integration.
+
+**Loop structure (spec review — steps 10a-10d):**
+1. After user signs off on spec (step 10), create LLM Security Auditor task (type="security_review", agent="llm_security_auditor")
+2. Delegate to child session → child determines applicability
+3. **If no LLM integration**: child marks task done with "not applicable", skip to step 11
+4. **If LLM integration detected**: child audits codebase, reviews spec, creates `question` tasks
+5. **If child recommends DEFER**: present deferral recommendation to user as a question. User decides whether to accept.
+6. Handle user question resolution inline (steps 10b)
+7. If questions were resolved AND changes made to spec: create second security review task, delegate (step 10c, iteration #2)
+8. Handle any new questions (step 10d)
+9. After 2 iterations OR zero new questions: proceed to step 11
+
+**Loop structure (plans review — steps 14a-14d):**
+Same pattern as above, but reviewing implementation plans after the Critic's review #3 and user question resolution (step 14).
+
+**Creating the initial security review task (after step 10 sign-off):**
+```
+task_create parent_id=<epic-id> type="security_review" name="LLM Security Review: Specification" description="Review the approved specification for LLM-specific security vulnerabilities. Follow docs/guidelines/LLM_SECURITY_GUIDELINES.md." agent="llm_security_auditor"
+```
+
+**Creating the plans security review task (after step 14):**
+```
+task_create parent_id=<epic-id> type="security_review" name="LLM Security Review: Implementation Plans" description="Review implementation plans for LLM-specific security vulnerabilities. Follow docs/guidelines/LLM_SECURITY_GUIDELINES.md." agent="llm_security_auditor"
+```
+
+**Handling the "DEFER EPIC" recommendation:**
+If the security auditor recommends deferring the epic, present this to the user:
+```
+"The LLM Security Auditor recommends deferring this epic because the codebase has no
+ LLM security infrastructure in place. The auditor recommends implementing foundational
+ LLM security measures in a separate epic first.
+
+ Details: [auditor's explanation]
+
+ Do you want to:
+ 1. Accept the deferral and create a foundational LLM security epic
+ 2. Override and proceed anyway (accepting the security risk)
+ 3. Discuss further"
+```
+The user's decision is final. If they choose to proceed, continue the workflow normally.
+
+**Skipping cleanly:**
+If the security auditor determines the epic has no LLM integration, it marks its task done with results indicating "not applicable." The orchestrator reads this result, skips any follow-up question resolution steps, and proceeds directly to the next workflow step. No question tasks are created, no user interaction needed.
+
 ## Test/Fix Loop
 
 Test failures (steps 17, 19) have a **5-iteration hard limit**:
@@ -352,8 +412,10 @@ As the workflow progresses, create tasks dynamically:
 - Create Critic Review #2 task, blocked by human review
 
 **After Spec Sign-Off (Step 10):**
-- Create catalog task (type="catalog", agent="architect")
+- Create LLM security review task (type="security_review", agent="llm_security_auditor")
 - Block it by the sign-off task
+- Create catalog task (type="catalog", agent="architect")
+- Block catalog task by the security review task (so it waits for security review + any follow-up questions to complete)
 
 **After Catalog (Step 11):**
 - Read the catalog artifact file
@@ -362,8 +424,12 @@ As the workflow progresses, create tasks dynamically:
 - Create Critic Review #3 task, blocked by all plan tasks
 
 **After Plans Approved (Step 14):**
+- Create LLM security review task for plans (type="security_review", agent="llm_security_auditor")
+- Block it by all plan question resolution tasks
+- After security review completes (and any follow-up questions resolved):
 - For each plan: create `implement` task (type="implement", agent="developer")
 - Preserve blocker relationships from plans
+- Block all implement tasks by the plans security review task (so implementation waits for security review)
 
 **After All Code Built (Step 15):**
 - Create unit test task (type="test", agent="test_writer")
@@ -414,6 +480,7 @@ if (iteration >= HARD_LIMIT) {
 **Build**: Code compiles, passes linting (Test Writer validates functional correctness)
 **Tests**: All acceptance criteria have tests, tests run
 **Critical Review**: Finds all gaps in one pass (3-iteration limit)
+**LLM Security Review**: Identifies all LLM security concerns in one pass, or determines "not applicable" (2-iteration limit)
 **Test/Fix**: All tests pass (5-iteration limit)
 
 ## Error Handling

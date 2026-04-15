@@ -22,6 +22,10 @@ The system is **spec-driven**: it front-loads design decisions through iterative
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐        │
 │  │  Critic  │ │TestWriter│ │ Reviser  │        │
 │  └──────────┘ └──────────┘ └──────────┘        │
+│  ┌──────────────────┐                           │
+│  │LLM Security      │                           │
+│  │Auditor           │                           │
+│  └──────────────────┘                           │
 │                                                 │
 │  Orchestrated by: /maps command                 │
 │  (.claude/commands/maps.md)                     │
@@ -59,7 +63,8 @@ mike_agentic_programming_system/
 │   ├── napkin/
 │   │   └── InitialDesignNotes.md      # Original design vision
 │   ├── guidelines/
-│   │   └── SPECIFICATION_GUIDELINES.md # Spec writing guidelines
+│   │   ├── SPECIFICATION_GUIDELINES.md # Spec writing guidelines
+│   │   └── LLM_SECURITY_GUIDELINES.md  # LLM security review guidelines
 │   └── specs/                         # System specifications
 │       ├── 01-db-schema.md            # SQLite database schema
 │       ├── 02-document-management.md  # Document storage, versioning, compression
@@ -90,7 +95,8 @@ target-project/
 │   │   ├── developer.md
 │   │   ├── critic.md
 │   │   ├── test-writer.md
-│   │   └── reviser.md
+│   │   ├── reviser.md
+│   │   └── llm-security-auditor.md
 │   └── commands/
 │       └── maps.md               # The /maps orchestrator command
 └── .maps/
@@ -113,7 +119,7 @@ Read these specs in order — later specs depend on earlier ones.
 | **01-db-schema.md** | SQLite schema: tasks, blockers, artifacts, config | Task hierarchy, forward-only status lifecycle, blocker-based sequencing |
 | **02-document-management.md** | How documents are stored, versioned, compressed | Filesystem storage, insert-new-row versioning, epic-scoped directories, 10K token limit |
 | **03-mcp-server.md** | MCP server: 16 tools, validation, error handling | TypeScript/Node.js, `better-sqlite3`, epic scoping, cascading unblock, 5 error categories |
-| **04-agents.md** | General agent framework | Personas not processes, six roles, two-layer architecture, context sharing |
+| **04-agents.md** | General agent framework | Personas not processes, seven roles, two-layer architecture, context sharing |
 | **04a-04f** | Individual agent specs | Role-specific inputs, outputs, success criteria, behavioral guidelines |
 | **05-orchestrator.md** | `/maps` command behavior | Crash recovery, hard limits (3/5/unlimited), session model, code undo |
 | **06-compressor.md** | Semantic densification | 4-pass rule-based compression, 30-50% token reduction, code blocks excluded |
@@ -132,10 +138,12 @@ Read these specs in order — later specs depend on earlier ones.
 6-7. User reviews spec + open questions
 8. Critic reviews again (Critical Review #2)
 9-10. User addresses questions + signs off (git commit)
+10a-d. LLM Security Auditor reviews spec (skips if no LLM integration; 2-iteration limit)
 11. Architect builds implementation catalog
 12. Developer writes implementation plans
 13. Critic reviews plans (Critical Review #3)
 14. User resolves remaining questions
+14a-d. LLM Security Auditor reviews plans (skips if no LLM integration; 2-iteration limit)
 15. Developer builds code from plans
 16. Test Writer writes and runs unit tests
 17. Critic triages failures → Reviser/Developer/Test Writer fix → retest loop
@@ -144,6 +152,7 @@ Read these specs in order — later specs depend on earlier ones.
 
 ### Loop hard limits
 - **Critical review**: 3 iterations
+- **LLM security review**: 2 iterations (conditional — skips if no LLM integration)
 - **Test/fix**: 5 iterations
 - **Spec review** (human-driven): no limit
 
