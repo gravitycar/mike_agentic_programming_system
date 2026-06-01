@@ -77,7 +77,22 @@ When the user invokes `/maps` with a problem description:
    project_init project_path="[current working directory]"
    ```
 
-5. **Create initial task chain** under the epic:
+5. **Ask about LLM security review**:
+
+   Ask the user:
+   ```
+   "Does this project involve LLM integration — calling an LLM API, building an
+    AI feature, processing LLM-generated content, etc.?
+
+    If yes (or you're unsure), the LLM Security Auditor will review your spec
+    and implementation plans.
+    If no, security review will be skipped entirely."
+   ```
+   Store the answer immediately:
+   - User says yes / unsure: `config_set key="llm_security_review" value="enabled"`
+   - User says no: `config_set key="llm_security_review" value="disabled"`
+
+6. **Create initial task chain** under the epic:
    - Research codebase (type="research", agent="researcher")
    - Research web (type="research", agent="researcher")
    - Block "Research web" by "Research codebase"
@@ -246,25 +261,57 @@ This allows each subsequent child to understand established patterns without rea
 
 When `next_task` returns a task with `agent="user"`:
 
-1. Present context and questions to the user in the conversation
-2. Wait for the user's response (no special prefix needed — they respond naturally)
-3. Record the user's input in the task results
-4. Create follow-up tasks based on the response
-5. Mark the human review task as done
+1. Fetch all relevant question tasks upfront with a **single** `task_list` call
+2. Present questions to the user one at a time — collect all answers in conversation (no MCP calls during Q&A)
+3. **Delegate recording to a child session** — the child calls `task_update` for each answer and marks the human-review task done
+4. After the child completes, proceed to `next_task` and create any follow-up tasks needed
+
+**Why delegate recording:** MCP tool results stay in context for the entire session. Recording N answers inline adds N `task_update` responses to the main context permanently. Delegating recording keeps that chatter in the child's context window, not yours.
+
+**What stays inline (never delegated):** Spec sign-off git commits and follow-up task creation — these are orchestration steps, not recording, and involve only 1-3 MCP calls total.
 
 **Example: Open Question Resolution (Steps 7, 9, 14)**
 
 When the Critic creates `question` tasks:
 ```
+[Single task_list call to fetch all open question tasks]
+
 Questions found:
 1. Q1: "How should expired tokens be handled?"
 2. Q2: "What is the target latency for API responses?"
 
-[Present questions to user one at a time]
+[Present questions to user one at a time — no MCP calls]
 User answers Q1: "Return 401, require re-authentication"
 User answers Q2: "p95 under 200ms"
 
-[Record answers, update spec if needed, mark questions as 'done']
+[All answers collected. Now delegate recording to a child session.]
+```
+
+Construct and spawn a recording child:
+
+```
+You are a MAPS recording agent. Your only job is to record human-provided answers
+into the task database and mark tasks done.
+
+## Answers to Record
+
+- Task ID: <id1>
+  Question: "How should expired tokens be handled?"
+  Answer: "Return 401, require re-authentication"
+
+- Task ID: <id2>
+  Question: "What is the target latency for API responses?"
+  Answer: "p95 under 200ms"
+
+## Human-Review Task
+- Task ID: <human-review-task-id>
+
+## Instructions
+1. For each answer: task_update task_id=<id> status="done" results="<answer>"
+2. Mark the human-review task done: task_update task_id=<human-review-task-id> status="done" results="All questions resolved"
+3. Return a one-line confirmation: "Recorded N answers, marked task <id> done."
+
+Do not read any files. Do not do any other work. Record and return.
 ```
 
 **Example: Spec Sign-Off (Step 10)**
@@ -278,13 +325,13 @@ Present the spec summary to the user:
 
 User: "Yes, approved"
 
-[Commit the spec to git]:
+[Commit the spec to git — inline, this is orchestration not recording]:
 git add .maps/docs/[epic-slug]/specification/spec.md
 git commit -m "Approve specification for [epic name]
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
 
-[Mark sign-off task as done, create catalog task]
+[Mark sign-off task as done, create catalog task — inline, only 2-3 MCP calls]
 ```
 
 ## Critical Review Loops
@@ -312,6 +359,9 @@ If the limit is reached:
 ## LLM Security Review Loop
 
 LLM security reviews (steps 10a-10d and 14a-14d) have a **2-iteration hard limit** and are **conditional** — they only run if the epic involves LLM integration.
+
+**Check before creating any security review tasks:**
+Call `config_get key="llm_security_review"`. If the value is `disabled`, skip this entire section — do not create any security review tasks and proceed directly to the next workflow step (catalog for spec review; implement tasks for plans review).
 
 **Loop structure (spec review — steps 10a-10d):**
 1. After user signs off on spec (step 10), create LLM Security Auditor task (type="security_review", agent="llm_security_auditor")
@@ -412,10 +462,9 @@ As the workflow progresses, create tasks dynamically:
 - Create Critic Review #2 task, blocked by human review
 
 **After Spec Sign-Off (Step 10):**
-- Create LLM security review task (type="security_review", agent="llm_security_auditor")
-- Block it by the sign-off task
-- Create catalog task (type="catalog", agent="architect")
-- Block catalog task by the security review task (so it waits for security review + any follow-up questions to complete)
+- Check `config_get key="llm_security_review"`:
+  - If `enabled`: Create LLM security review task (type="security_review", agent="llm_security_auditor"), block it by the sign-off task. Create catalog task (type="catalog", agent="architect"), block it by the security review task.
+  - If `disabled`: Create catalog task directly, block it by the sign-off task only. No security review task created.
 
 **After Catalog (Step 11):**
 - Read the catalog artifact file
@@ -424,12 +473,9 @@ As the workflow progresses, create tasks dynamically:
 - Create Critic Review #3 task, blocked by all plan tasks
 
 **After Plans Approved (Step 14):**
-- Create LLM security review task for plans (type="security_review", agent="llm_security_auditor")
-- Block it by all plan question resolution tasks
-- After security review completes (and any follow-up questions resolved):
-- For each plan: create `implement` task (type="implement", agent="developer")
-- Preserve blocker relationships from plans
-- Block all implement tasks by the plans security review task (so implementation waits for security review)
+- Check `config_get key="llm_security_review"`:
+  - If `enabled`: Create LLM security review task for plans (type="security_review", agent="llm_security_auditor"), block it by all plan question resolution tasks. After security review completes (and any follow-up questions resolved): create implement tasks, block all by the plans security review task.
+  - If `disabled`: Create implement tasks directly, preserving blocker relationships from plans. No security review task created.
 
 **After All Code Built (Step 15):**
 - Create unit test task (type="test", agent="test_writer")
@@ -496,13 +542,14 @@ MCP tool errors return error categories. Handle them:
 ## Important Reminders
 
 1. **Delegate, don't do**: Agent tasks are ALWAYS delegated to child sessions via the Task tool. You never perform agent work yourself.
-2. **Human review is inline**: Tasks with `agent="user"` are handled directly in this conversation.
+2. **Human review: collect inline, record via child**: Present questions and collect answers in this conversation. Then spawn a recording child to call `task_update` for each answer. Never call `task_update` per-answer inline — those MCP responses stay in context permanently.
 3. **One child at a time**: Never spawn more than one child session simultaneously. Sequential execution only.
 4. **Track files**: Maintain your file tracker so each child gets relevant source file context.
 5. **Forward-only status**: Never reopen completed tasks — create new tasks instead.
 6. **Epic scoping**: All task/artifact operations are auto-scoped to current_epic_id.
 7. **Orchestration stays with you**: Loop counting, follow-up task creation, triage routing, code undo, and crash recovery are YOUR job — never delegated.
 8. **Context is curated**: Use the Context Curation Table to give each child exactly the context it needs, no more.
+9. **Minimize inline MCP calls**: Every MCP tool response in the main process stays in context for the session. Prefer a single `task_list` to read questions, then delegate all write operations to a child.
 
 ## Starting the Workflow
 

@@ -149,6 +149,14 @@ Both summaries should be markdown files with clear sections:
    - Update your task status: `task_update task_id=<your-task-id> status="in_progress"`
    - Analyze the codebase
    - Write the codebase summary to `.maps/docs/<epic-slug>/research/codebase-summary.md`
+   - **Compress the summary in place** — re-read the file you just wrote and rewrite it to the same path in a token-efficient form. This version is what downstream agents (Architect, Developer) will use, so preserve every technical fact; only compress the representation:
+     - Convert verbose prose to dense assertions (`"The system uses Express for HTTP routing"` → `"Routing: Express"`)
+     - Collapse short bullet lists to inline comma-separated form
+     - Remove markdown emphasis markers (bold/italic) — the content carries the meaning
+     - Remove filler phrases (`"It is important to note that"`, `"As you can see"`, `"In order to"`)
+     - Define abbreviations once, then use them throughout (`"TypeScript (TS)"` then `"TS"`)
+     - Leave all file paths, function names, type names, and code blocks exactly as written
+     - Keep every convention, pattern, and architectural fact — compress prose, not content
    - Register the artifact: `artifact_register task_id=<your-task-id> artifact_type="codebase_summary" file_path="..."`
    - Update task status: `task_update task_id=<your-task-id> status="done" results="Codebase analysis complete"`
 

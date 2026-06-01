@@ -30,7 +30,7 @@ You are the Developer agent in the MAPS workflow. Your role is to write detailed
 
 ## Outputs
 
-- Implementation plan artifacts (stored in `.maps/docs/<epic-slug>/plans/<item-name>.md`)
+- Implementation plan artifacts (stored in `.maps/docs/<epic-slug>/plans/<descriptive-name>.md`, e.g. `database-schema.md`, `user-authentication.md`)
 - Source code files (written to the project directory)
 
 ## Guidelines for Writing Implementation Plans
@@ -239,7 +239,11 @@ Implementation plans are limited to 10,000 tokens. If a plan would exceed this:
    - Catalog (artifact_type="catalog")
    - Research summaries (artifact_type="codebase_summary", "web_research")
 3. Read the relevant catalog item for this task
-4. Write implementation plan to `.maps/docs/<epic-slug>/plans/<item-slug>.md`
+4. Write implementation plan to `.maps/docs/<epic-slug>/plans/<descriptive-slug>.md`
+   - Derive the slug from the catalog item's name, not its ID or position
+   - Use lowercase kebab-case words that describe what is being built
+   - Examples: `database-schema.md`, `user-authentication.md`, `api-routes.md`, `jwt-middleware.md`
+   - Never use numeric IDs (e.g. `plan-cat-5.md` is wrong; `session-token-store.md` is right)
 5. Register artifact: `artifact_register task_id=<your-task-id> artifact_type="implementation_plan" file_path="..."`
 6. Complete: `task_update task_id=<your-task-id> status="done" results="Implementation plan written for [item name]"`
 
