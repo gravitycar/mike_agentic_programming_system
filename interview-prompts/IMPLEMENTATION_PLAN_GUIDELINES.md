@@ -1,6 +1,6 @@
 # Implementation Plan Guidelines for AI-Assisted Development
 
-This guide defines how to write effective implementation plans within the MAPS workflow. Where the specification defines **what** to build and **why**, the implementation plan defines **how** — with enough detail that the Developer agent can build working code in a single pass without ambiguity.
+This guide defines how to write effective implementation plans for AI-assisted development. Where the specification defines **what** to build and **why**, the implementation plan defines **how** — with enough detail that the developer can build working code in a single pass without ambiguity.
 
 ---
 
@@ -54,17 +54,17 @@ Plans should be specific. Name the files, name the functions, show the signature
    - Return the created User (without password hash)"
 ```
 
-### 3. One Catalog Item, One Plan
+### 3. One Feature, One Plan
 
-Each implementation plan maps to exactly one item from the implementation catalog. The catalog item defines the scope boundary — the plan should not drift beyond it. If the plan discovers that the catalog item was scoped too broadly, that's a signal the catalog item needs decomposition, not that the plan should grow unbounded.
+Each implementation plan maps to exactly one feature or component. The scope boundary — the plan should not drift beyond it. If the plan discovers that the feature was scoped too broadly, that's a signal the feature needs decomposition, not that the plan should grow unbounded.
 
 ### 4. The Plan Is the Source of Truth for Build
 
-During step 15 (Build), the Developer follows the implementation plan faithfully. The Developer does not reinterpret the spec or make independent design decisions — it builds what the plan says. This is why the plan must be detailed enough to build from without ambiguity. The Critic validates plan completeness in step 13 before any code is written.
+The developer follows the implementation plan faithfully. The developer does not reinterpret the spec or make independent design decisions — it builds what the plan says. This is why the plan must be detailed enough to build from without ambiguity. Plans should be reviewed for completeness before any code is written.
 
 ### 5. Include Context, But Don't Duplicate the Spec
 
-Every plan should orient the reader to the larger picture — which spec requirement it fulfills, how it fits within the broader architecture. But the plan should reference the spec, not restate it. A brief summary of the relevant spec context is sufficient. The full specification is always available via `artifact_list`.
+Every plan should orient the reader to the larger picture — which spec requirement it fulfills, how it fits within the broader architecture. But the plan should reference the spec, not restate it. A brief summary of the relevant spec context is sufficient.
 
 ---
 
@@ -73,18 +73,17 @@ Every plan should orient the reader to the larger picture — which spec require
 Understanding where the plan sits in the document chain prevents duplication and gaps:
 
 ```
-Research Summaries → Specification → Implementation Catalog → Implementation Plans
-   (what exists)     (what to build)    (what the pieces are)   (how to build each piece)
+Research Summaries → Specification → Implementation Plans
+   (what exists)     (what to build)   (how to build each piece)
 ```
 
 | Document | Answers | Level of Detail |
 |----------|---------|-----------------|
 | **Research summary** | "What exists in the codebase and domain?" | Survey-level |
 | **Specification** | "What should the system do and why?" | Requirements-level (no code) |
-| **Implementation catalog** | "What are the discrete buildable units?" | List-level (no code, max ~3 files each) |
-| **Implementation plan** | "How exactly do we build this unit?" | Code-level (file paths, signatures, examples) |
+| **Implementation plan** | "How exactly do we build this?" | Code-level (file paths, signatures, examples) |
 
-The specification says "The system SHALL send email notifications within 60 seconds." The catalog says "Item 3: Email notification sender service (2 files)." The plan says "Create `EmailSender` class in `src/services/email-sender.ts` with `async send(notification: Notification): Promise<SendResult>` method that calls the Resend API, implements exponential backoff retry..."
+The specification says "The system SHALL send email notifications within 60 seconds." The plan says "Create `EmailSender` class in `src/services/email-sender.ts` with `async send(notification: Notification): Promise<SendResult>` method that calls the Resend API, implements exponential backoff retry..."
 
 ---
 
@@ -93,19 +92,19 @@ The specification says "The system SHALL send email notifications within 60 seco
 ### Recommended Template
 
 ```markdown
-# Implementation Plan: [Catalog Item Name]
+# Implementation Plan: [Feature/Component Name]
 
 ## Spec Context
 [2-3 sentences summarizing the relevant specification requirement and this plan's
 role in the broader implementation. Reference the spec section, not restate it.]
 
-Catalog item: [Name from catalog]
+Feature/Component: [Name]
 Specification section: [Which section(s) of the spec this fulfills]
 Acceptance criteria addressed: [List the specific criteria from the spec]
 
 ## Dependencies
-- **Blocked by**: [Other catalog items/plans that must be built first]
-- **Blocks**: [Other catalog items/plans that depend on this]
+- **Blocked by**: [Other plans that must be built first]
+- **Blocks**: [Other plans that depend on this]
 - **Uses**: [Existing code, libraries, services this depends on]
 
 ## File Changes
@@ -348,14 +347,12 @@ export interface TaskRepository {
 
 // SHOW: Critical logic (non-obvious business rules)
 async function cascadeUnblock(completedTaskId: number, db: Database): Promise<void> {
-  // Find all tasks blocked by the completed task
   const dependents = await db
     .select()
     .from(blockers)
     .where(eq(blockers.blockedByTaskId, completedTaskId));
 
   for (const dep of dependents) {
-    // Check if ALL blockers for this task are now done
     const remainingBlockers = await db
       .select()
       .from(blockers)
@@ -395,8 +392,8 @@ Code examples should use the project's actual language, framework, and libraries
 
 Every implementation plan should specify the unit tests that will verify the code. These test specs serve two purposes:
 
-1. **Guide the Developer** during build — knowing the tests helps write testable code
-2. **Guide the Test Writer** in step 16 — the test specs become the starting point for writing actual tests
+1. **Guide the developer** during build — knowing the tests helps write testable code
+2. **Guide whoever writes the tests** — the test specs become the starting point for writing actual tests
 
 ### What to Specify
 
@@ -453,7 +450,7 @@ Do NOT mock: internal validators, type converters, or pure utility functions
 
 ### Between Plans
 
-When one plan depends on code from another plan, state this explicitly. The dependency becomes a blocker relationship in the task tree.
+When one plan depends on code from another plan, state this explicitly.
 
 ```markdown
 ## Dependencies
@@ -576,7 +573,7 @@ The Developer builds literally from the plan. If the code example uses the wrong
 ✅ Good: "Use the existing hashPassword() from src/utils/crypto.ts"
 ```
 
-The Researcher analyzed the codebase in step 2. The plan should leverage that research. Before specifying new code, check whether the functionality already exists. The plan should reference existing utilities, not reinvent them.
+The plan should leverage the codebase research. Before specifying new code, check whether the functionality already exists. The plan should reference existing utilities, not reinvent them.
 
 ### 6. Too Much or Too Little Detail
 
@@ -592,7 +589,7 @@ The Researcher analyzed the codebase in step 2. The plan should leverage that re
 
 **Problem**: Writing plans that are hard to revise when tests fail.
 
-Plans should be structured so that individual components can be revised without rewriting the entire document. When the Reviser updates a plan after a test failure, it should be able to change the relevant section without disturbing the rest.
+Plans should be structured so that individual components can be revised without rewriting the entire document. When a plan is revised after a test failure, it should be possible to change the relevant section without disturbing the rest.
 
 ```
 ✅ Good structure: Separate sections per component, with clear boundaries
@@ -625,11 +622,11 @@ Test: duplicate email handling
 
 ### The 10K Token Limit
 
-Implementation plans have a hard limit of 10,000 tokens. This is not arbitrary — it ensures plans can fit in Claude's context window alongside the specification, test results, and other working documents.
+Implementation plans have a hard limit of 10,000 tokens. This is not arbitrary — it ensures plans can fit in a working context window alongside the specification, test results, and other working documents.
 
 ### When a Plan Is Too Large
 
-If a plan exceeds 10K tokens, the catalog item it maps to is scoped too broadly. The fix is upstream: decompose the catalog item into smaller items, each with its own plan.
+If a plan exceeds 10K tokens, the feature it maps to is scoped too broadly. The fix is upstream: decompose the feature into smaller pieces, each with its own plan.
 
 **Signs a plan needs decomposition:**
 - More than 3 files created or modified
@@ -639,9 +636,8 @@ If a plan exceeds 10K tokens, the catalog item it maps to is scoped too broadly.
 
 **How to decompose:**
 1. Identify natural boundaries (data layer vs. service layer vs. route handlers)
-2. Each boundary becomes a separate catalog item
-3. Add blocker relationships to preserve build order
-4. Each new catalog item gets its own plan
+2. Each boundary becomes a separate plan
+3. Note dependencies between plans to preserve build order
 
 ### When a Plan Is Too Small
 
@@ -679,10 +675,10 @@ Use this checklist before finalizing any implementation plan:
 ### Context
 - [ ] Spec context section summarizes the relevant requirement (2-3 sentences)
 - [ ] Acceptance criteria addressed are listed
-- [ ] Plan stays within the scope of its catalog item (no scope creep)
+- [ ] Plan stays within the scope of its feature (no scope creep)
 - [ ] Plan is under 10K tokens
 
 ### Reviewability
 - [ ] Plan is structured in discrete sections that can be revised independently
 - [ ] Component boundaries are clear
-- [ ] The Critic can compare each section against the spec to validate completeness
+- [ ] Each section can be compared against the spec to validate completeness
