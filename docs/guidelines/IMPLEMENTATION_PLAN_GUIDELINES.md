@@ -1,6 +1,6 @@
 # Implementation Plan Guidelines for AI-Assisted Development
 
-This guide defines how to write effective implementation plans within the MAPS workflow. Where the specification defines **what** to build and **why**, the implementation plan defines **how** — with enough detail that the Developer agent can build working code in a single pass without ambiguity.
+This guide defines how to write effective implementation plans for AI-assisted development. Where the specification defines **what** to build and **why**, the implementation plan defines **how** — with enough detail that the developer can build working code in a single pass without ambiguity.
 
 ---
 
@@ -60,11 +60,11 @@ Each implementation plan maps to exactly one item from the implementation catalo
 
 ### 4. The Plan Is the Source of Truth for Build
 
-During step 15 (Build), the Developer follows the implementation plan faithfully. The Developer does not reinterpret the spec or make independent design decisions — it builds what the plan says. This is why the plan must be detailed enough to build from without ambiguity. The Critic validates plan completeness in step 13 before any code is written.
+The developer follows the implementation plan faithfully. The developer does not reinterpret the spec or make independent design decisions — it builds what the plan says. This is why the plan must be detailed enough to build from without ambiguity. Plans should be reviewed for completeness before any code is written.
 
 ### 5. Include Context, But Don't Duplicate the Spec
 
-Every plan should orient the reader to the larger picture — which spec requirement it fulfills, how it fits within the broader architecture. But the plan should reference the spec, not restate it. A brief summary of the relevant spec context is sufficient. The full specification is always available via `artifact_list`.
+Every plan should orient the reader to the larger picture — which spec requirement it fulfills, how it fits within the broader architecture. But the plan should reference the spec, not restate it. A brief summary of the relevant spec context is sufficient.
 
 ---
 
@@ -99,7 +99,7 @@ The specification says "The system SHALL send email notifications within 60 seco
 [2-3 sentences summarizing the relevant specification requirement and this plan's
 role in the broader implementation. Reference the spec section, not restate it.]
 
-Catalog item: [Name from catalog]
+Feature/Component: [Name]
 Specification section: [Which section(s) of the spec this fulfills]
 Acceptance criteria addressed: [List the specific criteria from the spec]
 
@@ -395,8 +395,8 @@ Code examples should use the project's actual language, framework, and libraries
 
 Every implementation plan should specify the unit tests that will verify the code. These test specs serve two purposes:
 
-1. **Guide the Developer** during build — knowing the tests helps write testable code
-2. **Guide the Test Writer** in step 16 — the test specs become the starting point for writing actual tests
+1. **Guide the developer** during build — knowing the tests helps write testable code
+2. **Guide whoever writes the tests** — the test specs become the starting point for writing actual tests
 
 ### What to Specify
 
@@ -576,7 +576,7 @@ The Developer builds literally from the plan. If the code example uses the wrong
 ✅ Good: "Use the existing hashPassword() from src/utils/crypto.ts"
 ```
 
-The Researcher analyzed the codebase in step 2. The plan should leverage that research. Before specifying new code, check whether the functionality already exists. The plan should reference existing utilities, not reinvent them.
+The plan should leverage the codebase research. Before specifying new code, check whether the functionality already exists. The plan should reference existing utilities, not reinvent them.
 
 ### 6. Too Much or Too Little Detail
 
@@ -592,7 +592,7 @@ The Researcher analyzed the codebase in step 2. The plan should leverage that re
 
 **Problem**: Writing plans that are hard to revise when tests fail.
 
-Plans should be structured so that individual components can be revised without rewriting the entire document. When the Reviser updates a plan after a test failure, it should be able to change the relevant section without disturbing the rest.
+Plans should be structured so that individual components can be revised without rewriting the entire document. When a plan is revised after a test failure, it should be possible to change the relevant section without disturbing the rest.
 
 ```
 ✅ Good structure: Separate sections per component, with clear boundaries
