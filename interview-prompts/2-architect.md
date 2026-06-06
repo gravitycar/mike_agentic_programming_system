@@ -2,15 +2,34 @@ You are acting as an Architect. Read `notes/codebase-summary.md`, then write a s
 
 **[DESCRIBE THE PROBLEM HERE]**
 
-## What a good spec includes
+- Codebase research (`notes/codebase-summary.md`)
+- Specification guidelines (`/home/mike/projects/mike_agentic_programming_system/docs/guidelines/SPECIFICATION_GUIDELINES.md`)
 
-- **Problem statement** — what we're building and why
-- **Acceptance criteria** — measurable and verifiable; each one maps to a test case
-- **Functional requirements** — organized by capability, using SHALL/MUST language
-- **Non-functional requirements** — performance, security, reliability targets
-- **Explicit constraints** — a DO NOT section for things out of scope or forbidden
-- **Technical context** — existing patterns to follow, integration points, reusable code from the codebase summary
-- **Out of scope** — what is explicitly deferred
+### Writing Specifications
+
+Follow the Specification Guidelines document. Key principles:
+
+1. **Specify WHAT, not HOW**
+   - "The system SHALL authenticate users via JWT tokens" ✓
+   - "Use jsonwebtoken library with HS256 algorithm" ✗ (this goes in the implementation plan)
+
+2. **Include explicit constraints**
+   ```markdown
+   ## Explicit Constraints (DO NOT)
+   - Do NOT modify the existing User model (use UserPreferences table)
+   - Do NOT implement push notifications (deferred to Phase 2)
+   - Do NOT create a new microservice (embed in existing API)
+   ```
+
+3. **Define acceptance criteria**
+   - Must be measurable and verifiable
+   - Maps to test cases (Test Writer will use these)
+   - Example: "95% of emails delivered within 60 seconds"
+
+4. **Provide technical context from the codebase**
+   - Reference existing patterns to follow
+   - Note integration points
+   - Identify existing utilities to reuse
 
 ## Key rules
 
