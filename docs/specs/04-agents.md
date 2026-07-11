@@ -15,6 +15,7 @@ This document covers the general agent framework architecture. Each agent role h
 - [04d-agent-critic.md](04d-agent-critic.md) — Performs critical reviews, triages test failures
 - [04e-agent-test-writer.md](04e-agent-test-writer.md) — Writes and revises unit tests
 - [04f-agent-reviser.md](04f-agent-reviser.md) — Updates implementation plans after failures
+- [04g-agent-verifier.md](04g-agent-verifier.md) — Verifies acceptance criteria are met (Step 20)
 
 ## Agent Roles and Workflow Mapping
 
@@ -43,6 +44,11 @@ This document covers the general agent framework architecture. Each agent role h
 | 19b | Revise implementation plan | Reviser (if code is wrong) |
 | 19c | Rebuild code | Developer (from revised plan) |
 | 19d | Revise integration tests | Test Writer (if test is wrong) |
+| 20 (setup) | Materialize AT/AC tasks, wire blockers | `/maps` orchestrator |
+| 20a | Run MAPS-owned Acceptance Tests | Test Writer (executable) / Verifier (judgment) |
+| 20b | Triage Acceptance Test failures | Critic (code / test / both / criterion-spec wrong) |
+| 20c | Confirm Acceptance Criteria (evidence + confidence) | Verifier |
+| 20d | Perform User-owned Acceptance Tests | `user` (Verifier confirms) |
 
 ## Requirements
 - Each agent persona has a clearly defined role with specific instructions and guidelines
@@ -68,13 +74,14 @@ This approach was adopted after reviewing the [Agent Fabric](https://github.com/
 
 A custom TypeScript framework with separate Anthropic API calls was considered but rejected — Claude Code already provides everything the framework would have built (multi-turn tool use, context management, file access), and the persona approach is dramatically simpler.
 
-### Six separate agent roles
-All six roles remain as separate agents. Each has a distinct mindset and purpose:
+### Separate agent roles
+Each role remains a separate agent with a distinct mindset and purpose:
 - The **Developer** builds; the **Test Writer** challenges what was built
 - The **Architect** designs; the **Critic** finds gaps in the design
 - The **Reviser** fixes plans; distinct from the Developer who executes them
+- The **Verifier** confirms acceptance criteria are met; judgment-only, distinct from the Test Writer (who authors and runs tests) and the Critic (who triages failures)
 
-Combining roles (e.g., Critic + Reviser) would dilute the focused prompts that make each agent effective at its specific job.
+Combining roles (e.g., Critic + Reviser, or Test Writer + Verifier) would dilute the focused prompts that make each agent effective at its specific job.
 
 ### Architecture: two distinct layers
 
@@ -82,7 +89,7 @@ The system has two layers with a clear separation of concerns:
 
 | Layer | Components | Powered by |
 |-------|-----------|------------|
-| **Intelligence** | Researcher, Architect, Developer, Critic, Test Writer, Reviser | Claude Code + markdown persona files |
+| **Intelligence** | Researcher, Architect, Developer, Critic, Test Writer, Reviser, Verifier | Claude Code + markdown persona files |
 | **Infrastructure** | MCP Server, SQLite database | Deterministic TypeScript code |
 
 The **`/maps` command** (the Orchestrator) is a markdown file in `.claude/commands/` that defines workflow phases and sequencing rules. Claude Code follows these instructions, calling `next_task` to find work and activating the appropriate agent persona for each task.
@@ -114,6 +121,7 @@ When tests fail, the **Critic** reviews the failing tests against the spec, acce
 - **Code is wrong** → Reviser updates the implementation plan → Developer rebuilds → re-test
 - **Test is wrong** → Test Writer revises the test → re-test
 - **Both are wrong** → test revision happens after the code fix
+- **Criterion/spec is wrong** → no downstream fix can pass; the Critic nominates escalation and `/maps` surfaces it to the user (primarily during Step 20b acceptance verification)
 
 This ensures the right agent fixes the right problem.
 

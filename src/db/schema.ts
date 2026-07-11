@@ -27,6 +27,8 @@ export type TaskType =
   | 'plan'
   | 'implement'
   | 'test'
+  | 'acceptance-criterion'
+  | 'acceptance-test'
   | 'question';
 
 export type TaskStatus =

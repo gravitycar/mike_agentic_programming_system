@@ -16,6 +16,8 @@ const VALID_TASK_TYPES: TaskType[] = [
   'plan',
   'implement',
   'test',
+  'acceptance-criterion',
+  'acceptance-test',
   'question',
 ];
 

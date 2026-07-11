@@ -7,7 +7,9 @@ The Test Writer agent writes unit tests from the specification and acceptance cr
 
 ## Workflow Steps
 - **Step 16**: Write unit tests from the specification and acceptance criteria, then run them against the built code
-- **Step 17d**: Revise tests when the Critic determines the test was at fault
+- **Step 18**: Write and run integration tests
+- **Step 20a**: Author and run MAPS-owned executable Acceptance Tests (automated test, benchmark, headless UI drive) — referencing existing unit/integration tests, never duplicating them
+- **Step 17d / 19d**: Revise tests when the Critic determines the test was at fault
 
 ## Inputs
 - Specification and acceptance criteria (for writing tests)
@@ -26,8 +28,8 @@ The Test Writer is deliberately separate from the Developer because:
 - An **adversarial mindset** focused on edge cases, boundary conditions, and failure modes produces more thorough tests
 
 ## Success Criteria
-- Every acceptance criterion in the spec has at least one corresponding test. No hard code coverage target — acceptance criteria coverage is the measure.
-- Writing tests (step 16) and writing integration tests (step 18) are single-pass tasks. Test revision (step 17d) is managed by the `/maps` command within the 5-iteration test/fix loop.
+- Every MAPS-owned acceptance criterion has at least one corresponding executable test — referencing an existing unit/integration test where one already covers it, never duplicating. User-owned criteria are verified by manual procedures (step 20), not by Test Writer tests. No hard code-coverage target — acceptance-criteria coverage is the measure.
+- Writing tests (step 16), integration tests (step 18), and authoring/running executable Acceptance Tests (step 20a) are single-pass tasks. Test revision (steps 17d/19d) is managed by the `/maps` command within the 5-iteration test/fix loop.
 
 ## Behavioral Guidelines
 - The Test Writer handles both unit tests (step 16) and integration tests (step 18). Same agent persona, different task type.
@@ -37,7 +39,7 @@ The Test Writer is deliberately separate from the Developer because:
 
 ## Open Questions
 1. ~~What are the specific inputs and outputs for each of this agent's tasks?~~ **Resolved** — Already defined in this spec. Inputs: specification and acceptance criteria, implementation code, implementation plan, Critic's triage feedback. Outputs: unit test files and test results artifact.
-2. ~~What are the success criteria for written tests? Code coverage targets? Acceptance criteria coverage?~~ **Resolved** — Every acceptance criterion in the spec has at least one corresponding test. No hard code coverage target — acceptance criteria coverage is the measure.
+2. ~~What are the success criteria for written tests? Code coverage targets? Acceptance criteria coverage?~~ **Resolved** — Every MAPS-owned acceptance criterion has at least one corresponding executable test (referencing existing unit/integration tests, never duplicating); User-owned criteria are verified by manual procedures in step 20. No hard code-coverage target — acceptance-criteria coverage is the measure.
 3. ~~What are reasonable hard limits for this agent's iterations?~~ **Resolved** — Not applicable. Writing tests (step 16) is single-pass. Test revision (step 17d) is managed by the `/maps` command within the 5-iteration test/fix loop.
 4. ~~What test framework should be used? (May depend on the project's language/stack)~~ **Resolved** — Determined by the project's language/stack. The Test Writer persona instructions direct Claude to discover the project's existing test framework, or choose a standard one if none exists.
 5. ~~Should the Test Writer also write integration tests, or only unit tests?~~ **Resolved** — Both. Unit tests in step 16, integration tests in step 18. Same agent persona, different task type. See [07-workflow.md](07-workflow.md) resolved question #3.

@@ -52,6 +52,11 @@ You NEVER perform agent work yourself. You construct a delegation prompt, spawn 
 17. **Critic/Reviser/Developer/Test Writer** — Test failure triage/fix loop
 18. **Test Writer** — Writes and runs integration tests
 19. **Critic/Reviser/Developer/Test Writer** — Integration test triage/fix loop
+20. **Acceptance Verification** — materialize Acceptance Test and Acceptance Criterion tasks, verify every criterion, then complete the Epic:
+20a. **Test Writer/Verifier** — Run MAPS-owned Acceptance Tests (Test Writer runs executable ones; Verifier interprets judgment ones)
+20b. **Critic/Reviser/Developer/Test Writer** — Acceptance Test failure triage/fix loop (adds "criterion/spec wrong" verdict → escalate to user)
+20c. **Verifier** — Confirm each Acceptance Criterion (evidence + confidence); mark AC done
+20d. **User/Verifier** — User-owned Acceptance Tests (slim list + next-test detail); Verifier confirms. Epic completes when every AC is done
 
 ## Initial Setup
 
@@ -159,6 +164,7 @@ session — you have NO conversation history. Read all context from the files li
 Read and follow the instructions in: .claude/agents/<agent>.md
 (Use .claude/agents/test-writer.md for agent="test_writer")
 (Use .claude/agents/llm-security-auditor.md for agent="llm_security_auditor")
+(Use .claude/agents/verifier.md for agent="verifier")
 
 ## Your Task
 - Task ID: <id>
@@ -244,6 +250,9 @@ When gathering artifacts for delegation, use this lookup to determine what each 
 | 17d | Test Writer (revise) | `triage_review`, `specification`, `test_results` | Triage feedback + spec + test files |
 | 18 | Test Writer (integration) | `specification`, `implementation_plan` | Same as step 16 but for integration tests |
 | 19a-d | (same as 17a-d) | (same as 17a-d) | Integration test triage/fix loop |
+| 20a | Test Writer (acceptance) | `specification`, `implementation_plan`, `test_results` | Run executable Acceptance Tests; reference existing tests, never duplicate |
+| 20a/20c | Verifier | `specification`, `implementation_plan`, `test_results`, `acceptance_verification` | Judge judgment-based ATs; confirm ACs — needs AC verification tables, manual procedures, and evidence artifacts (screenshots/benchmark output) |
+| 20b | Critic (acceptance triage) | `specification`, `test_results`, `implementation_plan` | Same as 17a, plus acceptance evidence |
 
 **Compression**: Before including large documents in the delegation prompt's file list, consider whether the child should compress them. Include this note in the delegation prompt when relevant: "Use the `compress` MCP tool on large documents before using them as working context."
 
@@ -441,6 +450,9 @@ Critic's results contain: "TEST WRONG"
 
 Critic's results contain: "BOTH WRONG"
 → Create and delegate: Reviser first, then Developer, then Test Writer
+
+Critic's results contain: "CRITERION WRONG"
+→ Do NOT create fix tasks. Stop the loop for this criterion. Surface the Critic's reasoning to the user and ask whether to (a) amend the spec — revisit-earlier-phases: create new superseding spec/plan/verification tasks — or (b) overrule and resume the loop. (Primarily arises in Step 20b.)
 ```
 
 **Hard limit reached:**
@@ -449,6 +461,43 @@ Critic's results contain: "BOTH WRONG"
  Human intervention needed."
 
 [Present failure summary, get user guidance]
+```
+
+## Acceptance Verification (Step 20)
+
+After all integration tests pass (step 19), verify that every Acceptance Criterion in the spec is actually met. This is the "V" of the workflow — the Epic cannot complete until it is done.
+
+**Setup (you handle this directly — it is orchestration):**
+1. Read the signed-off spec's Acceptance Criteria (`AC-N`) and Acceptance Tests, and each plan's Acceptance Criteria Verification table (and Manual Verification Procedures).
+2. For each Acceptance Test, create an AT task (`type="acceptance-test"`):
+   - MAPS-owned + executable → `agent="test_writer"`
+   - MAPS-owned + judgment (benchmark analysis, visual/rendered output, inspection) → `agent="verifier"`
+   - User-owned → `agent="user"`
+3. For each Acceptance Criterion, create an AC task (`type="acceptance-criterion"`, `agent="verifier"`).
+4. Wire blockers: each AC task blocked by its AT task(s); the Epic blocked by every AC task.
+5. Cross-cutting criteria (tagged `**Scope:** cross-cutting`) are verified via their dedicated verification catalog item's plan — treat their ATs/ACs exactly like any other.
+
+**Order of operations:**
+1. **MAPS-owned first (20a):** delegate the MAPS-owned AT tasks — Test Writer runs executable ones (referencing existing unit/integration tests, never duplicating); Verifier judges judgment-based ones. An AT task is marked `done` only when it passes; a failure is recorded in `results`, not a status.
+2. **Triage failures (20b):** a failed AT enters the SAME triage/fix loop as steps 17/19 (delegate Critic triage; route CODE/TEST/BOTH; 5-iteration hard limit; code-undo before rebuild). The Critic may also return CRITERION WRONG → stop and escalate to the user (see Triage routing).
+3. **Confirm criteria (20c):** as each AC unblocks (its AT blockers clear → cascade sets it `open`), `next_task` surfaces it; delegate it to the Verifier, which records evidence + confidence and marks the AC `done`.
+4. **User-owned last (20d):** once all MAPS-owned verification and fixes are complete and the build is stable, hand off to the user:
+   - Build a **slim list** with a single `task_list type="acceptance-test" agent="user"` call — show each not-yet-`done` User-owned Acceptance Test as a one-line checklist.
+   - Present the full detail (Setup/Action/Expected from the plan's Manual Verification Procedure) for the **next** one only — progressive disclosure. Do not dump all procedures.
+   - As the user completes each, delegate recording (like other human-review recording) to mark the AT `done`, then delegate the Verifier to confirm the affected AC.
+
+**Confidence:** the Verifier records Confirmed / Asserted / User-confirmed in each AC's `results` (an AC is only as strong as its weakest AT). Asserted criteria are surfaced to the user at hand-off but do NOT block Epic completion.
+
+**Completion:** when every AC task is `done`, the Epic's blockers are all clear. Mark the Epic `done` and report the acceptance-verification summary (criteria verified, with confidence levels; any Asserted criteria flagged).
+
+**Regression after hand-off:** if a user-found failure triggers a rebuild, re-run the automated Acceptance Tests and create NEW re-verification AT tasks for affected manual criteria (forward-only — do not reopen a passed AT).
+
+**Hard limit reached (20b):**
+```
+"Acceptance verification has reached the 5-iteration limit and [N] Acceptance Tests are still failing.
+ Human intervention needed."
+
+[Present failure summary + Critic's latest triage, get user guidance]
 ```
 
 ## Creating Follow-Up Tasks
@@ -480,6 +529,14 @@ As the workflow progresses, create tasks dynamically:
 **After All Code Built (Step 15):**
 - Create unit test task (type="test", agent="test_writer")
 - Block it by all implement tasks
+
+**After Unit Tests Pass (Step 17):**
+- Create integration test task (type="test", agent="test_writer")
+- Block it by the unit test task
+
+**After Integration Tests Pass (Step 19): set up Acceptance Verification (Step 20)**
+- Materialize AT tasks (type="acceptance-test") and AC tasks (type="acceptance-criterion") from the spec + plans, and wire blockers (AT → AC → Epic) — see "Acceptance Verification (Step 20)" for the full procedure
+- Block the acceptance-verification work by the integration test task
 
 ## Crash Recovery
 
@@ -528,6 +585,7 @@ if (iteration >= HARD_LIMIT) {
 **Critical Review**: Finds all gaps in one pass (3-iteration limit)
 **LLM Security Review**: Identifies all LLM security concerns in one pass, or determines "not applicable" (2-iteration limit)
 **Test/Fix**: All tests pass (5-iteration limit)
+**Acceptance Verification**: Every Acceptance Criterion is confirmed (MAPS-owned automatically, User-owned via hand-off), each with a recorded confidence level; the Epic completes only when all AC tasks are done (5-iteration limit on the fix loop)
 
 ## Error Handling
 

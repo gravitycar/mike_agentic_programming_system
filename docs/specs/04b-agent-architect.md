@@ -23,12 +23,13 @@ The Architect agent designs the high-level structure of the project. It writes s
 
 ## Success Criteria
 - **Specification**: Must include a clear problem statement, acceptance criteria, and follow the specification guidelines. Completeness is validated by the Critic in step 5, not self-assessed by the Architect.
-- **Implementation catalog**: Every aspect of the spec is covered by a catalog item, each item is discrete (max ~3 files), and items have their blocking dependencies noted.
+- **Implementation catalog**: Every aspect of the spec — including every acceptance criterion — is covered by a catalog item. Cross-cutting criteria (tagged `**Scope:** cross-cutting`) that no feature item owns get dedicated verification catalog items. Each item is discrete (max ~3 files), and items have their blocking dependencies noted.
 - Steps 4 and 11 are single-pass tasks. Iteration happens through the review loop (Critic → user → Architect revises), managed by the `/maps` command.
 
 ## Behavioral Guidelines
 - If a specification exceeds the 10K token guideline, the Architect decomposes it into sub-sections stored as separate artifacts. The persona instructions guide this.
 - Claude has access to all artifacts via `artifact_list` and the file system. The `/maps` command instructions tell Claude which documents are relevant for step 12.
+- Cross-cutting acceptance criteria (performance, security, consistency, accessibility — tagged `**Scope:** cross-cutting` in the spec) are covered by dedicated verification catalog items rather than forced onto a feature item. These items are typically blocked by the feature items they measure, and their verification runs in step 20.
 
 ## Open Questions
 1. ~~What are the specific inputs and outputs for each of this agent's tasks?~~ **Resolved** — Already defined in this spec. Inputs: problem statement, codebase summary, research summary, specification guidelines, user feedback. Outputs: specification artifact and implementation catalog artifact.

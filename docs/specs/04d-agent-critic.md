@@ -10,6 +10,7 @@ The Critic agent performs critical reviews at multiple points in the workflow, i
 - **Step 8**: Critical Review #2 — review the revised spec for new or still-unaddressed open questions
 - **Step 13**: Critical Review #3 — review each implementation plan against the spec and previously resolved open questions
 - **Step 17a**: Test failure triage — review failing tests against the spec, acceptance criteria, and code to determine cause
+- **Step 20b**: Acceptance Test failure triage — same triage applied to failed Acceptance Tests reported by the Verifier during acceptance verification
 
 ## Inputs
 - Specification (for reviews #1 and #2)
@@ -20,7 +21,7 @@ The Critic agent performs critical reviews at multiple points in the workflow, i
 ## Outputs
 - Open questions (created as `question` tasks in the database)
 - Review summary artifacts (stored in `.maps/docs/<epic-slug>/reviews/`)
-- Triage determination: code is wrong, test is wrong, or both (for test failure triage)
+- Triage determination: code is wrong, test is wrong, both, or criterion/spec is wrong (for test and acceptance failure triage)
 
 ## Test Failure Triage
 When tests fail, the Critic reviews:
@@ -33,6 +34,7 @@ The Critic determines:
 - **Code is wrong** → routes to Reviser → Developer rebuild → re-test
 - **Test is wrong** → routes to Test Writer for revision → re-test
 - **Both are wrong** → code fix first, then test revision → re-test
+- **Criterion/spec is wrong** → the acceptance criterion (or the spec behind it) is itself contradictory, unsatisfiable, or incorrect; no downstream fix can make it pass. The Critic does not rewrite a signed-off spec — it *nominates* escalation, and `/maps` stops the loop for that criterion and escalates to the user, who amends the spec (new superseding tasks) or overrules. Available in all triage steps, primarily exercised in Step 20b.
 
 ## Success Criteria
 - Single-pass per review task. The Critic reviews the document, identifies open questions, and produces a review summary. It doesn't loop — the review loop is managed by `/maps` (Critic → user → revise → Critic again, up to 3 iterations).
@@ -46,6 +48,7 @@ Compare the test's assertions against the spec's acceptance criteria:
 - If the test expects behavior that matches the spec but the code doesn't deliver it → **code is wrong**
 - If the test expects behavior that contradicts or goes beyond the spec → **test is wrong**
 - If both deviate from the spec → **both are wrong**
+- If the criterion itself cannot be satisfied — it is internally contradictory, contradicts another criterion, or demands the impossible — so no code/test/plan change could make it pass → **criterion/spec is wrong** (nominate escalation to the user)
 
 ## Open Questions
 1. ~~What are the specific inputs and outputs for each of this agent's review tasks?~~ **Resolved** — Already defined in this spec. Inputs: specification, resolved open questions, implementation plans, failing test output/code. Outputs: open questions (as `question` tasks), review summary artifacts, triage determinations.

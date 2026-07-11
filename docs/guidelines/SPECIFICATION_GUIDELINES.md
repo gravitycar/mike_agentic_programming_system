@@ -40,7 +40,7 @@ Specifications drive automation—they're not post-facto documentation. When spe
 ❌ Bad: "Use Redis queue with 3 worker processes"
 ```
 
-The specification defines success criteria; the plan phase determines technical approach.
+The specification defines acceptance criteria; the plan phase determines technical approach.
 
 ### 3. Explicit Constraints Are Critical
 
@@ -155,12 +155,27 @@ As a [user type], I want [capability], so that [benefit].
 - **Secondary**: [Support teams, operations]
 - **Tertiary**: [Business owners, compliance]
 
-## Success Criteria
-[Measurable outcomes that define success - must be verifiable]
+## Acceptance Criteria
+[The conditions that must be true for the implementation to be considered complete — the *what*, not the *how*. Each criterion must be **verifiable**: there is a definite way to confirm whether it holds — by measurement ("p95 latency < 100ms"), by inspection ("a Help button appears in the toolbar"), or by observed behavior ("clicking Help opens the docs URL in a new window"). Each criterion has a stable ID (AC-N), a short human-friendly **name**, a verifiable statement, and a verification **owner** — MAPS if MAPS can confirm it on its own, User if any part requires a human. Each criterion is demonstrated by one or more Acceptance Tests below. Business outcomes measurable only in production belong in Success Metrics, not here.]
 
-1. **[Metric Name]**: [Specific threshold, e.g., "95% delivered within 60 seconds"]
-2. **[Impact Measure]**: [Business outcome, e.g., "40% reduction in support tickets"]
-3. **[Quality Gate]**: [Technical threshold, e.g., "99.9% uptime"]
+**ID stability**: IDs are assigned once and never renumbered or reused. If a criterion is removed, its number is retired, not recycled; new criteria append. This keeps traceability stable across spec revisions.
+
+**Referencing criteria**: anywhere a criterion is referenced — in Acceptance Tests, Success Metrics, or implementation plans — use `AC-N — <name>`. The ID is the authoritative match key; the name is a reading aid that may be edited, so tooling matches on ID while humans read the name.
+
+**Cross-cutting criteria**: a criterion that no single buildable unit owns — because it spans the whole system (performance, security, consistency, accessibility) — is tagged `**Scope:** cross-cutting` on its entry. Feature-scoped criteria need no scope marker. A cross-cutting criterion is covered by a dedicated *verification catalog item* rather than a feature item; its distributed implementation is enforced by the spec's constraints/NFRs (and the Critic's review of each plan), while its verification lives in that one item.
+
+1. **AC-1 — Valid payload accepted**: The `POST /notifications` endpoint returns 202 with a notification ID for a valid payload. **Owner:** MAPS
+2. **AC-2 — Report PDF well-formed**: The exported report PDF is visually well-formed (header present, no clipped text, correct spacing). **Owner:** User
+3. **AC-3 — Notification latency under 100ms**: p95 latency for `/notifications` is under 100ms in the benchmark harness. **Owner:** MAPS **Scope:** cross-cutting
+
+## Success Metrics
+[Post-launch outcomes that define whether the feature achieved its purpose. Unlike Acceptance Criteria, these can only be observed in production — with real usage, over time — so MAPS does not verify them and they carry no owner. They capture intent and serve as the post-launch validation checklist. Each metric has a stable ID (SM-N) and a short human-friendly name. Where a metric has a dev-time proxy, cross-reference the Acceptance Criterion (by `AC-N — <name>`) that stands in for it during the build; that AC's Acceptance Tests carry the verification MAPS can actually perform.]
+
+**ID stability**: same convention as Acceptance Criteria — SM-N assigned once, never renumbered or reused.
+
+1. **SM-1 — Support ticket reduction**: Support tickets related to notification delivery drop by 40% within one quarter of launch.
+2. **SM-2 — Service uptime**: The system sustains 99.9% uptime over a rolling 30-day window.
+3. **SM-3 — Production latency at scale**: p95 latency stays under 100ms at 10,000 concurrent production users. *Verified in dev by:* AC-3 — Notification latency under 100ms.
 
 ## Context and Problem Statement
 [Why are we building this? What problem does it solve? What happens if we don't?]
@@ -274,15 +289,35 @@ POST /api/v2/notifications
 
 ## Acceptance Tests
 
-✅ **Test scenarios that prove the feature works**
+✅ **A high-level verification map** — for each Acceptance Criterion, name how it will be demonstrated and by what method, so a reviewer can confirm at sign-off that every criterion is verifiable. Keep each entry to a few lines; the detailed procedure lives in the implementation plan that addresses the criterion — concrete test cases for MAPS-owned criteria, manual step-by-step procedures for User-owned criteria. Each entry traces back to one or more criteria above.
 
-1. **Test Name**: [Clear description]
-   - **Setup**: [Preconditions]
-   - **Action**: [What to do]
-   - **Expected**: [What should happen]
-   - **Success Criteria**: [How to measure]
+1. **Valid payload accepted**
+   - **Verifies**: AC-1 — Valid payload accepted
+   - **Method**: automated test
+   - **Expected**: A POST with a valid payload returns 202 with a notification ID.
 
-2. **Test Name**: ...
+2. **Notification latency within budget**
+   - **Verifies**: AC-3 — Notification latency under 100ms
+   - **Method**: benchmark
+   - **Expected**: p95 latency for `/notifications` measures under 100ms in the harness.
+
+3. **Report PDF renders correctly**
+   - **Verifies**: AC-2 — Report PDF well-formed
+   - **Method**: manual visual inspection
+   - **Expected**: The exported PDF shows the header, with no clipped text and correct spacing. (Detailed procedure lives in the plan addressing AC-2.)
+
+**Method vocabulary** (each method implies an owner):
+
+| Method | Implied owner |
+|--------|---------------|
+| automated test | MAPS |
+| benchmark | MAPS |
+| headless UI drive | MAPS |
+| inspection (agent reads code/artifacts) | MAPS |
+| manual UI interaction | User |
+| manual visual inspection | User |
+
+**Consistency rule**: if any test that `Verifies` an acceptance criterion uses a User method, that criterion's **Owner** must be `User`.
 
 ## Dependencies
 
@@ -621,23 +656,6 @@ Write spec → Implement → Update spec based on learnings → Spec reflects re
 
 **Key Insight** (Zencoder): "Specifications without verification are just documentation"
 
-### Link Specs to Tests
-
-Every acceptance criterion should map to a test:
-
-```markdown
-## Acceptance Criteria
-
-1. **Email delivery speed**: 95% delivered within 60 seconds
-   → Test: `test/notifications/email-delivery-speed.test.ts`
-
-2. **Quiet hours respected**: SMS queued during quiet hours
-   → Test: `test/notifications/sms-quiet-hours.test.ts`
-
-3. **Retry logic**: 3 attempts with exponential backoff
-   → Test: `test/notifications/retry-logic.test.ts`
-```
-
 ### Test Pyramid for Specifications
 
 ```
@@ -659,55 +677,6 @@ Every acceptance criterion should map to a test:
  │ Business logic validation  │
  │ Acceptance criteria proofs │
   ───────────────────────────
-```
-
-### Acceptance Test Format
-
-```typescript
-describe('Notification System - Specification v1.2.0', () => {
-  describe('Acceptance Criterion: Email delivery within 60 seconds', () => {
-    it('delivers 95% of emails within 60 seconds under load', async () => {
-      // Arrange
-      const notifications = generateTestNotifications(1000);
-
-      // Act
-      const results = await Promise.all(
-        notifications.map(n => measureDeliveryTime(n))
-      );
-
-      // Assert
-      const p95 = percentile(results, 95);
-      expect(p95).toBeLessThan(60_000); // 60 seconds
-    });
-  });
-
-  describe('Acceptance Criterion: Quiet hours respected', () => {
-    it('queues SMS during quiet hours, sends immediately after', async () => {
-      // Arrange
-      setSystemTime('23:00'); // 11 PM
-      const user = await createUserWithPreferences({
-        smsEnabled: true,
-        quietHoursStart: '22:00',
-        quietHoursEnd: '08:00',
-      });
-
-      // Act
-      await triggerNotification(user, 'order_delivered');
-
-      // Assert
-      const smsStatus = await getSMSStatus(user);
-      expect(smsStatus.sent).toBe(false);
-      expect(smsStatus.queuedFor).toBe('08:00');
-
-      // Advance time to 8 AM
-      setSystemTime('08:00');
-      await processQueue();
-
-      const smsAfterQuietHours = await getSMSStatus(user);
-      expect(smsAfterQuietHours.sent).toBe(true);
-    });
-  });
-});
 ```
 
 ---
@@ -769,12 +738,15 @@ Use this checklist before finalizing any specification:
 
 ### Completeness
 - [ ] User story clearly defines who, what, and why
-- [ ] Success criteria are measurable and verifiable
+- [ ] Acceptance criteria are verifiable, each with a stable ID (AC-N), a name, and an owner (MAPS or User)
 - [ ] All functional requirements listed by capability area
 - [ ] Non-functional requirements cover performance, security, reliability
 - [ ] Explicit constraints (DO NOTs) clearly listed
 - [ ] Technical context explains integration points
-- [ ] Acceptance tests map to success criteria
+- [ ] Every acceptance criterion is verified by at least one acceptance test
+- [ ] Every acceptance test lists the criteria it Verifies and its Method
+- [ ] Owners are consistent with methods (any User-method test ⇒ that criterion is User-owned)
+- [ ] Production-only outcomes are in Success Metrics, not Acceptance Criteria (dev-time proxy ACs cross-referenced where they exist)
 - [ ] Dependencies identified (upstream and downstream)
 - [ ] Risks documented with mitigations
 - [ ] Out of scope explicitly stated
@@ -797,7 +769,7 @@ Use this checklist before finalizing any specification:
 
 ### AI-Readiness
 - [ ] Structured format (headings, lists, tables)
-- [ ] Executable acceptance criteria
+- [ ] Each acceptance criterion has a defined verification path (test + method)
 - [ ] Clear separation of "what" vs "how"
 - [ ] Examples and patterns provided
 - [ ] Verification approach defined

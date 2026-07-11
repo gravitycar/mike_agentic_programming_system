@@ -12,10 +12,11 @@ This guide defines how to write effective implementation plans within the MAPS w
 4. [Writing Effective Plans](#writing-effective-plans)
 5. [Code Examples](#code-examples)
 6. [Unit Test Specifications](#unit-test-specifications)
-7. [Handling Dependencies](#handling-dependencies)
-8. [Common Pitfalls to Avoid](#common-pitfalls-to-avoid)
-9. [Sizing and Decomposition](#sizing-and-decomposition)
-10. [Quick Reference Checklist](#quick-reference-checklist)
+7. [Acceptance Criteria Verification](#acceptance-criteria-verification)
+8. [Handling Dependencies](#handling-dependencies)
+9. [Common Pitfalls to Avoid](#common-pitfalls-to-avoid)
+10. [Sizing and Decomposition](#sizing-and-decomposition)
+11. [Quick Reference Checklist](#quick-reference-checklist)
 
 ---
 
@@ -101,7 +102,7 @@ role in the broader implementation. Reference the spec section, not restate it.]
 
 Catalog item: [Name from catalog]
 Specification section: [Which section(s) of the spec this fulfills]
-Acceptance criteria addressed: [List the specific criteria from the spec]
+Acceptance criteria addressed: [AC-N — <name> references from the spec, e.g., AC-1 — Valid payload accepted, AC-2 — Report PDF well-formed]
 
 ## Dependencies
 - **Blocked by**: [Other catalog items/plans that must be built first]
@@ -191,6 +192,24 @@ export class UserService {
    - Setup: [What to arrange]
    - Call: `functionName(invalidInput)`
    - Expect: [Specific error type or behavior]
+
+## Acceptance Criteria Verification
+
+For each acceptance criterion this plan addresses (listed in Spec Context), state how the plan verifies it. The **Owner** must match the spec. MAPS-owned criteria map to a test case from Unit Test Specifications above (name the method); User-owned criteria map to a manual verification procedure, written out below — this is where the detailed procedure lives, not in the spec.
+
+| Criterion | Owner | Verified by |
+|-----------|-------|-------------|
+| AC-1 — Valid payload accepted | MAPS | `tests/notifications.test.ts` → "returns 202 for valid payload" (automated test) |
+| AC-2 — Report PDF well-formed | User | Manual procedure below |
+
+### Manual Verification Procedures
+
+Written for each User-owned criterion, so a human can confirm it.
+
+**AC-2 — Report PDF well-formed**
+- **Setup**: [Preconditions — e.g., generate a report from the sample dataset]
+- **Action**: [What the human does — e.g., open the exported PDF]
+- **Expected**: [What the human should observe — header present, no clipped text, correct spacing]
 
 ## Notes
 
@@ -449,6 +468,17 @@ Do NOT mock: internal validators, type converters, or pure utility functions
 
 ---
 
+## Acceptance Criteria Verification
+
+Beyond unit tests, every acceptance criterion the plan addresses needs a stated verification path. Because criteria carry a verification **owner** in the spec (MAPS or User), the plan handles the two owners differently:
+
+- **MAPS-owned criteria** — MAPS can confirm these on its own. Map each to a verifying test case from the Unit Test Specifications above, and name its method (automated test, benchmark, headless UI drive, inspection). These become executed evidence during the test steps.
+- **User-owned criteria** — MAPS cannot confirm these; a human must. The spec deliberately keeps only a slim verification map, so the plan is where the **detailed manual procedure lives**. Write it as concrete Setup / Action / Expected steps a person can follow.
+
+Record all of this in the plan's **Acceptance Criteria Verification** table (see the template), which lists every addressed criterion, its owner, and how it is verified. This table is the thread the coverage check follows to confirm no criterion was left unaddressed. The plan's owner column must match the spec — if the spec marks a criterion User-owned, the plan does not get to "upgrade" it to a MAPS test.
+
+---
+
 ## Handling Dependencies
 
 ### Between Plans
@@ -674,11 +704,13 @@ Use this checklist before finalizing any implementation plan:
 - [ ] Test file paths are specified
 - [ ] Mocking strategy is defined for external dependencies
 - [ ] Each test case has clear setup, action, and expected result
-- [ ] Every acceptance criterion from the spec has at least one corresponding test case
+- [ ] Every MAPS-owned acceptance criterion this plan addresses has a verifying test case (with its method)
+- [ ] Every User-owned acceptance criterion this plan addresses has a written manual verification procedure
+- [ ] The Acceptance Criteria Verification table lists every criterion this plan addresses
 
 ### Context
 - [ ] Spec context section summarizes the relevant requirement (2-3 sentences)
-- [ ] Acceptance criteria addressed are listed
+- [ ] Acceptance criteria addressed are listed by ID and name (AC-N — <name>)
 - [ ] Plan stays within the scope of its catalog item (no scope creep)
 - [ ] Plan is under 10K tokens
 

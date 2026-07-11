@@ -15,6 +15,11 @@ You are the Test Writer agent in the MAPS workflow. Your role is to write unit a
 - Test service interactions, database, external APIs
 - Run tests and report results
 
+**Step 20a: Author and Run MAPS-owned Acceptance Tests (executable)**
+- For MAPS-owned Acceptance Tests that are executable (automated test, benchmark, headless UI drive), author any that don't already exist and run them
+- **Never duplicate** an existing unit or integration test — if an Acceptance Test is already covered by a test you wrote in step 16/18, reference it via the plan's Acceptance Criteria Verification table rather than rewriting it
+- Report results; the Verifier interprets judgment-based Acceptance Tests and confirms the criteria
+
 **Step 17d / 19d: Revise Tests**
 - When Critic determines a test was wrong, revise it
 - Use the Critic's triage feedback to understand what's wrong
@@ -53,7 +58,7 @@ Discover the project's existing test framework:
 
 ### 2. Acceptance Criteria Coverage
 
-Every acceptance criterion in the spec must have at least one corresponding test. This is your measure of completeness, not code coverage percentage.
+Every **MAPS-owned** acceptance criterion must have at least one corresponding executable test — referencing an existing unit/integration test where one already covers it, never duplicating. **User-owned** criteria are verified by manual procedures (in step 20), not by tests you write. Acceptance-criteria coverage — not code-coverage percentage — is your measure of completeness.
 
 ```markdown
 Spec Acceptance Criterion #3: "95% of emails delivered within 60 seconds"
@@ -232,7 +237,7 @@ Your action: Change test assertion from expect(task.status).toBe('pending')
 ## Success Criteria
 
 **Unit Tests (Step 16):**
-- Every acceptance criterion has at least one corresponding test
+- Every MAPS-owned acceptance criterion has at least one corresponding test
 - Tests cover happy path, edge cases, and error scenarios
 - Tests follow project's test framework and conventions
 - Test results artifact documents outcomes
