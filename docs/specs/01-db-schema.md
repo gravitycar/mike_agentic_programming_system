@@ -15,12 +15,12 @@ Four tables are defined:
 |--------------|-------------|
 | id           | Primary key |
 | parent_id    | Foreign key to parent task |
-| type         | epic, research, specification, agent-review, human-review, catalog, plan, implement, test, question |
+| type         | epic, research, specification, agent-review, human-review, catalog, plan, implement, test, acceptance-criterion, acceptance-test, question |
 | name         | Short name |
 | description  | Detailed description |
 | status       | open, in_progress, blocked, done, deferred, orphaned |
-| agent        | Who handles this task: an agent role (architect, researcher, developer, critic, test_writer, reviser) or `user` for tasks requiring human action |
-| results      | Agent operational output (confirmations, summaries, notes). Documents are tracked separately via the artifacts table, not stored here. |
+| agent        | Who handles this task: an agent role (architect, researcher, developer, critic, test_writer, reviser, verifier) or `user` for tasks requiring human action |
+| results      | Agent operational output (confirmations, summaries, notes). For acceptance verification, also holds the verification evidence and confidence level (Confirmed / Asserted / User-confirmed) — confidence is a `results` convention, not a task status. Documents are tracked separately via the artifacts table, not stored here. |
 | created_at   | Timestamp |
 | updated_at   | Timestamp |
 | completed_at | Timestamp |
@@ -41,7 +41,7 @@ Blocker resolution is inferred from the blocking task's status — a blocker is 
 |---------------|-------------|
 | id            | Primary key |
 | task_id       | FK to the task that produced this artifact |
-| artifact_type | Category of the artifact (spec, catalog, implementation_plan, research_summary, codebase_summary, test_results, etc.) |
+| artifact_type | Category of the artifact (spec, catalog, implementation_plan, research_summary, codebase_summary, test_results, acceptance_verification, etc.) |
 | file_path     | Path to the file on disk |
 | created_at    | Timestamp |
 
@@ -75,7 +75,7 @@ Task statuses only move forward via `task_update`. If work needs to be redone, c
 4. ~~Do we need an audit/history table to track status changes over time?~~ **Resolved** — No. Not needed for initial implementation. Can be added later if a pressing need emerges.
 5. ~~Is there a need for a `metadata` or `context` column on tasks to store agent-specific configuration?~~ **Resolved** — No generic metadata column needed. An `agent` column was added to specify which agent role handles the task. Other context (search terms, review criteria, etc.) fits naturally in `description`. A JSON metadata column can be added later if an edge case surfaces.
 6. ~~Should blocker records have a `status` or `resolved_at` field, or do we infer resolution from the blocking task's status?~~ **Resolved** — Infer from the blocking task's status. A blocker is resolved when the `blocked_by_task_id` task has status `done`. No extra columns needed on the blockers table.
-7. ~~The `type` enum — is this list complete? Are there types we're missing?~~ **Resolved** — Updated to: `epic, research, specification, agent-review, human-review, catalog, plan, implement, test, question`. Key changes: `review` split into `agent-review` and `human-review` to emphasize the distinct human review step; `plan` added to distinguish writing implementation plans from executing them.
+7. ~~The `type` enum — is this list complete? Are there types we're missing?~~ **Resolved** — Updated to: `epic, research, specification, agent-review, human-review, catalog, plan, implement, test, question`. Key changes: `review` split into `agent-review` and `human-review` to emphasize the distinct human review step; `plan` added to distinguish writing implementation plans from executing them. Later extended with `acceptance-criterion` and `acceptance-test` for Step 20 acceptance verification.
 8. ~~Where does the SQLite file live within the project directory? Root? A `.maps/` subdirectory?~~ **Resolved** — `.maps/` subdirectory (e.g., `/Users/me/projects/awesome_project/.maps/maps.db`). This keeps MAPS files tucked away and provides a home for other MAPS artifacts and configuration.
 9. ~~Do we need a `project` or `config` table for storing project-level settings (e.g., the project path, creation date)?~~ **Resolved** — Yes. A `config` key-value table was added to track project-level settings, primarily `current_epic_id`. This is needed because multiple epics can be in progress simultaneously, and agents need to know which epic they're working on to locate the correct documents in the `.maps/docs/<epic-slug>/` directory structure.
 

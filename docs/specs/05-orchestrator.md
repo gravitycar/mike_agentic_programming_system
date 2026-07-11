@@ -58,6 +58,7 @@ Loop iteration counts are derived from the task tree (count completed sibling ta
 - Respect hard limits defined in the command instructions:
   - **Critical review loop** (Critic finds questions → user answers → Critic re-reviews): **3 iterations**. If the Critic is still finding new questions after 3 rounds, something deeper is wrong and needs human intervention.
   - **Test/fix loop** (test → triage → fix → retest): **5 iterations**. Code fixes can take a few attempts.
+  - **Acceptance verification loop** (Step 20b: acceptance test → triage → fix → re-verify): **5 iterations**, same as the test/fix loop.
   - **Spec review loop** (user feedback → revise → re-review): **no hard limit** — this is human-driven and ends when the user signs off.
 - When the hard limit is reached, pause and present the situation to the user
 

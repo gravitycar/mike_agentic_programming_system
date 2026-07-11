@@ -6,7 +6,7 @@
 The workflow defines the end-to-end pipeline from a user's initial problem statement through tested, working code. It specifies the sequence of steps, which agent handles each step, decision points, loops, and human interaction points.
 
 ## Context
-From the initial design notes, the workflow has 17 steps:
+The workflow began as the 17 steps in the initial design notes and has since grown to include integration testing and acceptance verification. The current steps:
 
 1. **User** — Describes the problem statement/goal
 2. **Agent** — Takes stock of current codebase state. Summarize.
@@ -27,13 +27,14 @@ From the initial design notes, the workflow has 17 steps:
 17. **Agent** — Review test results. For failures: update plan, undo changes, rebuild, retest.
 18. **Agent** — Write and run integration tests.
 19. **Agent** — Review integration test results. For failures: same triage/fix loop as step 17.
+20. **Agent** — Acceptance Verification. Materialize Acceptance Test and Acceptance Criterion tasks (AT blocks AC blocks Epic); run/confirm MAPS-owned Acceptance Tests and triage/fix failures; then hand off User-owned Acceptance Tests to the user. The Epic completes only when every Acceptance Criterion is verified. (See "Acceptance Verification" below.)
 
 ## Requirements
 - Steps must execute in order, with explicit blocking between phases
 - All execution is sequential — Claude works through tasks one at a time within a single conversation
 - Human review steps must pause the workflow until the user provides input
 - Critical review loops (steps 5-9) must repeat until the Critic finds zero new open questions AND the user signs off. Hard limit: 3 iterations.
-- Implementation and test loops (steps 15-17, 18-19) have a hard limit of 5 iterations
+- Implementation and test loops (steps 15-17, 18-19) and the acceptance verification loop (step 20) have a hard limit of 5 iterations
 - Integration testing (steps 18-19) follows the same triage/fix loop pattern as unit testing
 - Each step must update task status in the database via the MCP server
 - Code undo before rebuild: when a test failure requires rebuilding, Claude reverts modified files via `git checkout` and deletes new files before rebuilding from a revised plan
@@ -44,6 +45,16 @@ Open questions are resolved interactively, one at a time, in a conversation betw
 
 ### Revisiting Earlier Phases
 The workflow follows a forward-only status lifecycle — completed tasks are never reopened. If the user wants to go back (e.g., revise the spec after seeing implementation plans), new tasks are created: a new spec revision task, a new review cycle, and potentially new implementation plan tasks that supersede the old ones. The user initiates this during any human review step by telling Claude they want to revisit an earlier phase. The `/maps` command instructions should account for this as a valid user action.
+
+### Acceptance Verification (Step 20)
+After all unit and integration tests pass, Step 20 verifies that every Acceptance Criterion in the specification is actually met by the built system.
+
+- **Setup (orchestrator):** From the signed-off spec and the implementation plans, `/maps` materializes one **Acceptance Test (AT)** task per Acceptance Test and one **Acceptance Criterion (AC)** task per criterion. Blockers wire **AT → AC → Epic**: each AC is blocked by its AT(s), and the Epic is blocked by every AC. This is what prevents the Epic from completing until every criterion is verified.
+- **20a — MAPS-owned verification:** The Test Writer runs the automated Acceptance Tests — referencing existing unit/integration tests (never duplicating them) and any acceptance-specific executable checks it authored. The Verifier interprets judgment-based Acceptance Tests (benchmark analysis, rendered/visual output, inspection). An AT task is `done` only when it passes; a failure is recorded in `results`, not a status.
+- **20b — Triage failures:** A failed Acceptance Test goes to the Critic, which determines code / test / both / criterion-spec wrong, reusing the step-17 fix loop (Reviser revises the plan → Developer rebuilds; or Test Writer revises the test) under a 5-iteration hard limit. A "criterion/spec wrong" verdict stops the loop for that criterion and escalates to the user.
+- **20c — Confirm criteria:** As each AC's Acceptance Tests clear (cascading-unblock opens the AC task), the Verifier confirms the AC — recording the evidence and a confidence level (Confirmed / Asserted / User-confirmed; an AC's level is the weakest of its ATs) into the AC task `results` — and marks it `done`. Confidence is an attribute in `results`, not a new status.
+- **20d — User-owned verification:** Once all MAPS-owned verification and fixes are complete and the build is stable, `/maps` hands off to the user with a slim list of the unpassed User-owned Acceptance Tests plus the full detail for the next one only (progressive disclosure). The user performs each; the Verifier confirms the corresponding criteria.
+- **Completion:** The Epic completes when every AC task is `done`. Asserted criteria are surfaced at hand-off but do not block completion. If a post-hand-off fix rebuilds code, the automated Acceptance Tests are re-run and new re-verification tasks are created for affected manual criteria (forward-only — the previously-done AT is not reopened).
 
 ## Open Questions
 1. ~~How does the system pause and resume for human interaction steps (6, 7, 9, 10, 14)? Is this a CLI prompt, a status the user checks, or something else?~~ **Resolved** — Claude presents questions and context directly in the Claude Code conversation. The user responds naturally — no special prefix or mechanism needed. See [05-orchestrator.md](05-orchestrator.md) resolved questions #2 and #3.

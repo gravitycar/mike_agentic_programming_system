@@ -75,11 +75,15 @@ The catalog is a concise list of discrete items to build. Each item:
 - **Scope**: [What files/components — max ~3 files]
 - **Blocks**: [List items that depend on this, if any]
 - **Blocked by**: [List items this depends on, if any]
-- **Acceptance Criteria**: [Which spec criteria this addresses]
+- **Acceptance Criteria**: [Which spec criteria this addresses, by `AC-N — name`]
 
 ### 2. [Item Name]
 ...
 ```
+
+**Acceptance criteria coverage:**
+- Every acceptance criterion in the spec must be covered by at least one catalog item — feature items cover the criteria their feature satisfies
+- A **cross-cutting** criterion (tagged `**Scope:** cross-cutting` in the spec) that no feature item naturally owns gets its own dedicated **verification catalog item** (e.g., "Performance & Load Verification", "Security Properties Scan"). These items exist to verify a criterion, not to build a feature; they are typically blocked by the feature items they measure, and their Acceptance Tests run during step 20
 
 **Sizing:**
 - Each item should be buildable in a single implementation plan
