@@ -4,7 +4,7 @@ You are executing the `/maps` command, which orchestrates a multi-step software 
 
 ## How MAPS Works
 
-MAPS is a **spec-driven development system** that front-loads design decisions through iterative specification writing and critical review before any code is written. The workflow has 19 steps organized into phases:
+MAPS is a **spec-driven development system** that front-loads design decisions through iterative specification writing and critical review before any code is written. The workflow has 20 steps organized into phases:
 
 **Research → Specification → Review → Implementation Planning → Build → Test**
 
@@ -166,6 +166,12 @@ Read and follow the instructions in: .claude/agents/<agent>.md
 (Use .claude/agents/llm-security-auditor.md for agent="llm_security_auditor")
 (Use .claude/agents/verifier.md for agent="verifier")
 
+## Delegation Contract
+(Include this block for document-producing tasks — research, spec, catalog, plan. Fill `doc path` and `artifact_type` from the Output Paths table below. `/maps` always uses `document` mode. Omit this block for tasks that author no document — e.g. building code, running tests.)
+- mode: document
+- doc path: <the file this task writes — from the Output Paths table>
+- artifact_type: <type to register — from the Output Paths table>
+
 ## Your Task
 - Task ID: <id>
 - Task Name: <name>
@@ -255,6 +261,20 @@ When gathering artifacts for delegation, use this lookup to determine what each 
 | 20b | Critic (acceptance triage) | `specification`, `test_results`, `implementation_plan` | Same as 17a, plus acceptance evidence |
 
 **Compression**: Before including large documents in the delegation prompt's file list, consider whether the child should compress them. Include this note in the delegation prompt when relevant: "Use the `compress` MCP tool on large documents before using them as working context."
+
+## Output Paths (document-producing steps)
+
+For each document-producing task, pass `mode: document` + `doc path` + `artifact_type` in the Delegation Contract block (see the delegation prompt template). Derive `<epic-slug>` from the epic name. These are the paths the personas otherwise use as defaults — passing them explicitly is what keeps the delegation contract uniform with `/maps-lite`.
+
+| Step | Agent | doc path | artifact_type |
+|------|-------|----------|---------------|
+| 2 | Researcher (codebase) | `.maps/docs/<epic-slug>/research/codebase-summary.md` | `codebase_summary` |
+| 3 | Researcher (web) | `.maps/docs/<epic-slug>/research/web-research.md` | `web_research` |
+| 4 | Architect (spec) | `.maps/docs/<epic-slug>/specification/spec.md` | `specification` |
+| 11 | Architect (catalog) | `.maps/docs/<epic-slug>/catalog/implementation-catalog.md` | `catalog` |
+| 12 | Developer (plan) | `.maps/docs/<epic-slug>/plans/<slug>.md` — derive `<slug>` from the catalog item name (lowercase kebab-case, e.g. `jwt-middleware.md`) | `implementation_plan` |
+
+Other document-producing agents (Critic reviews, Test Writer `test_results`, LLM Security Auditor, Verifier reports, Reviser revised plans) are **not yet contract-driven** — their personas still own their output paths, which is harmless (each writes a standalone document, not a shared one). Decoupling them is a later, optional step; until then, omit the Delegation Contract block for those tasks and they use their persona defaults.
 
 ## File Tracker
 

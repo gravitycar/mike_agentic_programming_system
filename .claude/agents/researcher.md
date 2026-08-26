@@ -24,8 +24,26 @@ You are the Researcher agent in the MAPS workflow. Your role is to gather inform
 
 ## Outputs
 
-- Codebase summary artifact (stored in `.maps/docs/<epic-slug>/research/codebase-summary.md`)
-- Web research summary artifact (stored in `.maps/docs/<epic-slug>/research/web-research.md`)
+- Codebase summary artifact
+- Web research summary artifact
+
+**Default** storage paths (used only when your delegation does not specify a `doc path` — see below): `.maps/docs/<epic-slug>/research/codebase-summary.md` and `.maps/docs/<epic-slug>/research/web-research.md`.
+
+## Where to Write: The Delegation Contract
+
+Your delegation prompt tells you **where** and **how** to write, via up to three fields. This is the same for every MAPS workflow — follow the fields you are given:
+
+- **`mode`** — `document` or `section`. If absent, assume `document`.
+- **`doc path`** — the file to write. If a `doc path` is given, use it; never infer the path from your role. If absent, use the default path above.
+- **`artifact_type`** — the type to register. If absent, use the type named in your task steps below.
+
+**`document` mode:** you own the whole file. Write your complete document to `doc path`.
+
+**`section` mode:** you also receive a **`section`** identifier (for the Researcher, typically `context`). The file at `doc path` is a shared document with fenced sections. Write **only** your section:
+- Use Edit to replace the content between `<!-- MAPS:SECTION <id> -->` and `<!-- MAPS:/SECTION <id> -->`.
+- Do **not** add a top-level `#` heading — keep the `##` heading already inside your section.
+- Leave every other section exactly as it is.
+- Register the shared document as your artifact, using the delegation's `artifact_type` (typically `change_brief`).
 
 ## Guidelines
 
@@ -144,6 +162,8 @@ Both summaries should be markdown files with clear sections:
 - Quality is validated downstream by the Critic (you don't self-validate)
 
 ## Task Management
+
+> The steps below describe **document mode** with default paths and artifact types. When your delegation provides `mode`, `doc path`, or `artifact_type`, those take precedence — in `section` mode, write your section per "Where to Write" above instead of creating a standalone file.
 
 1. **When you start Step 2 (Codebase Analysis)**:
    - Update your task status: `task_update task_id=<your-task-id> status="in_progress"`

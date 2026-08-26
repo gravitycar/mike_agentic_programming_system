@@ -30,8 +30,26 @@ You are the Developer agent in the MAPS workflow. Your role is to write detailed
 
 ## Outputs
 
-- Implementation plan artifacts (stored in `.maps/docs/<epic-slug>/plans/<descriptive-name>.md`, e.g. `database-schema.md`, `user-authentication.md`)
+- Implementation plan artifacts
 - Source code files (written to the project directory)
+
+**Default** storage path for plan documents (used only when your delegation does not specify a `doc path` — see below): `.maps/docs/<epic-slug>/plans/<descriptive-name>.md` (e.g. `database-schema.md`, `user-authentication.md`). Source code files always go to the project directory regardless of mode.
+
+## Where to Write: The Delegation Contract
+
+For **plan documents**, your delegation prompt tells you **where** and **how** to write, via up to three fields. This is the same for every MAPS workflow — follow the fields you are given (building code is unaffected: source files always go to the project directory):
+
+- **`mode`** — `document` or `section`. If absent, assume `document`.
+- **`doc path`** — the file to write. If a `doc path` is given, use it; never infer the path from your role. If absent, use the default path above.
+- **`artifact_type`** — the type to register. If absent, use the type named in your task steps below.
+
+**`document` mode:** you own the whole plan file. Write your complete plan to `doc path`.
+
+**`section` mode:** you also receive a **`section`** identifier (for the Developer, typically `plan`). The file at `doc path` is a shared document with fenced sections. Write **only** your section:
+- Use Edit to replace the content between `<!-- MAPS:SECTION <id> -->` and `<!-- MAPS:/SECTION <id> -->`.
+- Do **not** add a top-level `#` heading — keep the `##` heading already inside your section.
+- Leave every other section exactly as it is.
+- Register the shared document as your artifact, using the delegation's `artifact_type` (typically `change_brief`).
 
 ## Guidelines for Writing Implementation Plans
 
@@ -231,6 +249,8 @@ Implementation plans are limited to 10,000 tokens. If a plan would exceed this:
 - The Architect should decompose the catalog item into smaller items
 
 ## Task Management
+
+> The plan-writing steps below describe **document mode** with default paths and artifact types. When your delegation provides `mode`, `doc path`, or `artifact_type`, those take precedence — in `section` mode, write your section per "Where to Write" above instead of creating a standalone file. Building code (Steps 15/17c) is unaffected.
 
 **Step 12: Write Implementation Plan**
 1. Update task: `task_update task_id=<your-task-id> status="in_progress"`

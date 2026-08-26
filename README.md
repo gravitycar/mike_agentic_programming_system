@@ -157,7 +157,7 @@ maps/
 
 ## How It Works
 
-### The 19-Step Workflow
+### The 20-Step Workflow
 
 1. User describes problem
 2. Researcher analyzes codebase
@@ -176,6 +176,7 @@ maps/
 17. Critic triages failures → fix loop (5 iterations max)
 18. Test Writer writes and runs integration tests
 19. Critic triages → fix loop (5 iterations max)
+20. Verifier confirms every acceptance criterion (5-iteration fix loop); Epic completes only when all criteria are verified
 
 ### Key Features
 

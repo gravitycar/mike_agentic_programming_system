@@ -10,6 +10,8 @@ The system is **spec-driven**: it front-loads design decisions through iterative
 
 **Built.** All specifications are written and all 105 open questions are resolved. The MCP server (16 tools), database layer, compressor, all seven agent personas, the `/maps` orchestrator command, and the `maps-init.sh` setup script are implemented. Build with `npm run build` (TypeScript → `dist/`).
 
+A lightweight variant, `/maps-lite`, for small changes and bug fixes is **specified** ([docs/specs/09-maps-lite.md](docs/specs/09-maps-lite.md)) but **not yet implemented** — the command, persona edits, and the full-`/maps` delegation retrofit are pending.
+
 ## Architecture
 
 ```
@@ -110,7 +112,8 @@ mike_agentic_programming_system/
         ├── 05-orchestrator.md         # /maps command (Claude Code as orchestrator)
         ├── 06-compressor.md           # Semantic densification
         ├── 07-workflow.md             # 20-step workflow definition
-        └── 08-project-setup.md        # Setup script, portability
+        ├── 08-project-setup.md        # Setup script, portability
+        └── 09-maps-lite.md            # /maps-lite lightweight workflow (spec; impl pending)
 ```
 
 ### Target project structure (produced by `maps-init.sh`)
@@ -154,8 +157,9 @@ Read these specs in order — later specs depend on earlier ones.
 | **04a-04g** | Individual agent specs (incl. **04g Verifier** — acceptance verification) | Role-specific inputs, outputs, success criteria, behavioral guidelines |
 | **05-orchestrator.md** | `/maps` command behavior | Crash recovery, hard limits (3/5/unlimited), session model, code undo |
 | **06-compressor.md** | Semantic densification | 4-pass rule-based compression, 30-50% token reduction, code blocks excluded |
-| **07-workflow.md** | 19-step workflow | Sequential execution, review loops, integration testing, backward navigation |
+| **07-workflow.md** | 20-step workflow | Sequential execution, review loops, integration testing, backward navigation |
 | **08-project-setup.md** | Setup script and portability | `maps-init.sh`, `.mcp.json` merge, idempotent, Node.js + Claude Code prerequisites |
+| **09-maps-lite.md** | Lightweight `/maps` variant for small changes/bug fixes | Merged change brief, section-writing delegation contract, `question`-task confirmation gate, escalation, conditional Step 20 |
 
 ## Workflow Overview
 
@@ -181,6 +185,8 @@ Read these specs in order — later specs depend on earlier ones.
 18. Test Writer writes and runs integration tests
 19. Same triage/fix loop for integration tests
 20. Verifier confirms every acceptance criterion (MAPS-owned automatically, User-owned via hand-off); Critic triage adds a "criterion/spec wrong" verdict; the Epic completes only when all criteria are verified
+
+**Small changes:** `/maps-lite` provides a shorter path for bug fixes and minor changes that reuses this infrastructure and these personas. See [09-maps-lite.md](docs/specs/09-maps-lite.md).
 
 ### Loop hard limits
 - **Critical review**: 3 iterations
