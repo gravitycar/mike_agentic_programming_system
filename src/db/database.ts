@@ -30,12 +30,26 @@ export class MapsDatabase {
 
     // Initialize schema
     this.initSchema();
+    this.runMigrations();
   }
 
   private initSchema(): void {
     // Create all tables
     for (const createTableSQL of ALL_TABLES) {
       this.db.exec(createTableSQL);
+    }
+  }
+
+  // Idempotent, additive migrations for databases created before a column existed.
+  // CREATE TABLE IF NOT EXISTS does not add columns to an existing table.
+  private runMigrations(): void {
+    const columns = this.db
+      .prepare('PRAGMA table_info(tasks)')
+      .all() as { name: string }[];
+
+    // mr-maps: nullable Shortcut story link on plan tasks. NULL in stock /maps.
+    if (!columns.some((c) => c.name === 'shortcut_story_id')) {
+      this.db.exec('ALTER TABLE tasks ADD COLUMN shortcut_story_id INTEGER');
     }
   }
 

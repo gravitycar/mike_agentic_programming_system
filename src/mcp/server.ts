@@ -99,6 +99,7 @@ export class MapsServer {
               description: { type: 'string', description: 'New description (optional)' },
               agent: { type: 'string', description: 'New agent (optional)' },
               results: { type: 'string', description: 'Task results (optional)' },
+              shortcut_story_id: { type: 'number', description: 'Shortcut story number linked to this task (optional; mr-maps only). Pass null to clear.' },
             },
             required: ['task_id'],
           },

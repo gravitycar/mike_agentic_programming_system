@@ -15,6 +15,7 @@ export interface Task {
   created_at: string; // ISO 8601
   updated_at: string; // ISO 8601
   completed_at: string | null; // ISO 8601
+  shortcut_story_id: number | null; // MetaRouter/mr-maps only; NULL in stock /maps
 }
 
 export type TaskType =
@@ -74,6 +75,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   completed_at TEXT,
+  shortcut_story_id INTEGER,
   FOREIGN KEY (parent_id) REFERENCES tasks(id)
 )`;
 

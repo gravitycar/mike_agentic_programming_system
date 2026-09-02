@@ -186,6 +186,7 @@ export function taskUpdate(
     description?: string;
     agent?: string;
     results?: string;
+    shortcut_story_id?: number | null;
   }
 ): Task {
   validateRequired(params.task_id, 'task_id');
@@ -197,11 +198,18 @@ export function taskUpdate(
     !params.name &&
     !params.description &&
     !params.agent &&
-    !params.results
+    !params.results &&
+    params.shortcut_story_id === undefined
   ) {
     throw new ValidationError(
-      'At least one of status, name, description, agent, or results must be provided'
+      'At least one of status, name, description, agent, results, or shortcut_story_id must be provided'
     );
+  }
+
+  // shortcut_story_id, when set to a value, must be a positive integer.
+  // null is allowed to clear the link.
+  if (params.shortcut_story_id !== undefined && params.shortcut_story_id !== null) {
+    validatePositiveInteger(params.shortcut_story_id, 'shortcut_story_id');
   }
 
   // Get current task
@@ -237,6 +245,10 @@ export function taskUpdate(
   if (params.results !== undefined) {
     updates.push('results = ?');
     values.push(params.results);
+  }
+  if (params.shortcut_story_id !== undefined) {
+    updates.push('shortcut_story_id = ?');
+    values.push(params.shortcut_story_id);
   }
 
   const now = new Date().toISOString();
