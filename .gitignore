@@ -147,3 +147,9 @@ vite.config.ts.timestamp-*
 go.mod
 main.go
 
+
+# macOS
+.DS_Store
+
+# Claude Code local output styles (personal, not shared)
+.claude/output-styles/
