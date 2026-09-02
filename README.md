@@ -22,8 +22,8 @@ All while maintaining a **spec as source of truth** philosophy and using **task-
 MAPS has two distinct layers:
 
 **Intelligence Layer** (Claude Code + Agent Personas)
-- 6 agent personas (Researcher, Architect, Developer, Critic, Test Writer, Reviser)
-- `/maps` command (orchestrator)
+- 8 core agent personas (Researcher, Architect, Developer, Critic, Test Writer, Reviser, LLM Security Auditor, Verifier), plus a Story Reconciler for the `mr-maps` variant
+- Three orchestrator commands: `/maps`, `/maps-lite`, `/mr-maps`
 - All reasoning, writing, and coding happens here
 
 **Infrastructure Layer** (TypeScript MCP Server + SQLite)
@@ -34,29 +34,31 @@ MAPS has two distinct layers:
 
 ## Prerequisites
 
-- **Node.js** (v18 or later)
-- **Claude Code** - Download from https://claude.ai/download
+- **Claude Code** — download from https://claude.ai/download.
+- **Node.js**, at the version pinned in this repo's `.tool-versions` (currently **22.23.2**). MAPS runs its MCP server under that exact version, because it uses a native module (`better-sqlite3`) whose compiled ABI must match the node that runs it. Install that version with your version manager. With asdf: `asdf install nodejs 22.23.2`.
+- **git**.
+- For **`/mr-maps`** (the MetaRouter variant): the **Shortcut MCP** server configured in your project. A read-capable server is required. A write-capable one lets `mr-maps` create Shortcut epics and stories for you.
+
+## The Three Commands
+
+MAPS installs three orchestrator commands. They share the same MCP server, database, and personas.
+
+- **`/maps`** — the full 20-step workflow for feature-scale work.
+- **`/maps-lite`** — a lightweight path for small changes and bug fixes.
+- **`/mr-maps`** ("Mister Maps") — the MetaRouter variant. It maps work onto Shortcut epics and stories, creates one git branch per story, and tests with unit tests plus UI-driven Cypress specs. See [Using `/mr-maps`](#using-mr-maps-at-metarouter).
 
 ## Installation
-
-### Option 1: Clone and Build
 
 ```bash
 # Clone the repository
 git clone https://github.com/gravitycar/mike_agentic_programming_system.git
 cd mike_agentic_programming_system
 
-# Install dependencies
+# Install dependencies and build. These run under the node pinned in
+# .tool-versions. npm install fetches a prebuilt better-sqlite3 binary, so
+# no C/C++ toolchain or python is needed.
 npm install
-
-# Build the MCP server
 npm run build
-```
-
-### Option 2: Use Pre-built (when available)
-
-```bash
-npm install -g maps
 ```
 
 ## Setup a Project for MAPS
@@ -69,15 +71,20 @@ cd /path/to/your/project
 ```
 
 This will:
-- ✓ Copy agent personas to `.claude/agents/`
-- ✓ Copy `/maps` command to `.claude/commands/`
+- ✓ Copy all agent personas to `.claude/agents/`
+- ✓ Copy all commands (`/maps`, `/maps-lite`, `/mr-maps`) to `.claude/commands/`
 - ✓ Copy guidelines to `.maps/guidelines/`
-- ✓ Configure MCP server in `.mcp.json` (merges, doesn't overwrite)
-- ✓ Create `.maps/` directory structure
+- ✓ Configure the MCP server in `.mcp.json` (merges, doesn't overwrite)
+- ✓ Create the `.maps/` directory structure
+
+The MCP server is wired through a launcher, `bin/maps-server.sh`, so it always runs under the node pinned in the MAPS repo, regardless of the node your project pins.
 
 **After setup:**
-1. Restart Claude Code to load the MCP server
-2. You're ready to use `/maps`
+1. Restart Claude Code to load the MCP server.
+2. Run `/mcp` and confirm `maps` shows **connected**.
+3. You're ready to use `/maps`, `/maps-lite`, or `/mr-maps`.
+
+**If `/mcp` reports a `maps` scope conflict:** an old `maps` entry in another scope can shadow the new one and fail. Keep the project entry and remove the other, for example `claude mcp remove maps -s local`.
 
 ## Usage
 
@@ -115,6 +122,31 @@ MAPS will then:
    - Same triage/fix loop as unit tests
 
 All progress is saved in the `.maps/` directory and SQLite database. You can stop and resume at any time.
+
+## Using `/mr-maps` at MetaRouter
+
+`/mr-maps` runs the MAPS workflow in a MetaRouter repository, mapped onto MetaRouter's Shortcut and git conventions. It works in any MetaRouter GitLab or GitHub repo, not one specific project.
+
+### What it does differently
+- **Shortcut epic and stories.** Your problem statement is the epic. Each implementation plan becomes one Shortcut story.
+- **One branch per story.** Each story gets one git branch, named `<user>/<type>/sc-<story#>/<short-desc>`, 40 characters or fewer.
+- **Documents in `docs/plans/`.** The spec and each story plan are committed under `docs/plans/sc-<epic#>/`. Internal MAPS files stay in `.maps/`.
+- **Unit tests plus Cypress.** Unit tests are colocated. UI-facing behavior is covered by UI-driven Cypress specs, which must pass before each commit.
+
+### Prerequisites
+- Everything under [Prerequisites](#prerequisites) above, including the pinned node version.
+- The **Shortcut MCP** server configured in your project. Read access is required. Write access is optional and lets `mr-maps` create the epic and stories for you.
+- Gitignore the whole `.maps/` directory. `mr-maps` commits deliverables to `docs/plans/`, not `.maps/`.
+
+### Start it
+
+```
+/mr-maps <problem statement for a Shortcut epic>
+```
+
+`mr-maps` captures the Shortcut epic number, writes and reviews a spec, breaks it into stories, and reconciles those against existing Shortcut stories. It then builds each story on its own branch, with unit and Cypress tests passing before commit. It makes local commits only. You control `git push` and merge request creation.
+
+For the full design, see [docs/specs/10-mr-maps.md](docs/specs/10-mr-maps.md).
 
 ## Project Structure
 
@@ -210,9 +242,8 @@ MAPS adds this entry to your project's `.mcp.json`:
 {
   "mcpServers": {
     "maps": {
-      "command": "node",
+      "command": "/path/to/maps/bin/maps-server.sh",
       "args": [
-        "/path/to/maps/dist/index.js",
         "/path/to/your/project"
       ]
     }
@@ -220,7 +251,7 @@ MAPS adds this entry to your project's `.mcp.json`:
 }
 ```
 
-The setup script handles this automatically and merges with existing configurations.
+The `command` is a launcher that runs the server under the node pinned in the MAPS repo, so a different node in your project cannot break it. The setup script writes this automatically and merges with existing configurations. It never overwrites other servers.
 
 ## Development
 
@@ -269,18 +300,15 @@ The result: higher quality software with fewer rework cycles.
 
 ## Status
 
-**Current**: v1.0.0 - All core features implemented
+**Current**: v1.0.0 — core features implemented, plus the `mr-maps` MetaRouter variant.
 
 - ✅ MCP Server with 16 tools
-- ✅ 6 Agent personas
-- ✅ /maps orchestrator command
-- ✅ Setup script for portability
+- ✅ 8 core agent personas, plus the Story Reconciler for `mr-maps`
+- ✅ Three commands: `/maps`, `/maps-lite`, `/mr-maps`
+- ✅ Setup script with a portable node launcher
 - ✅ Semantic compression
-- ✅ All 105 spec questions resolved
 
-**What's built**: Everything. MAPS is ready to use.
-
-**What's next**: Real-world testing, iteration based on feedback
+**What's next**: Real-world testing with the team, iteration based on feedback.
 
 ## License
 

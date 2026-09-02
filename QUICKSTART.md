@@ -4,8 +4,9 @@ Get started with MAPS in 5 minutes.
 
 ## Prerequisites
 
-- Node.js (v18+)
-- Claude Code CLI
+- Claude Code CLI.
+- Node.js at the version pinned in the MAPS repo's `.tool-versions` (currently **22.23.2**), installed with your version manager. With asdf: `asdf install nodejs 22.23.2`. MAPS runs its server under this exact version.
+- For `/mr-maps`: the **Shortcut MCP** server configured in your project (read access required, write access optional).
 
 ## Step 1: Build MAPS
 
@@ -15,7 +16,7 @@ npm install
 npm run build
 ```
 
-You should see compiled output in `dist/`.
+These run under the pinned node. `npm install` fetches a prebuilt `better-sqlite3` binary, so you need no C/C++ toolchain or python. You should see compiled output in `dist/`.
 
 ## Step 2: Set Up Your Project
 
@@ -43,6 +44,8 @@ For Claude Code to load the MCP server, you need to restart:
 claude
 ```
 
+Then run `/mcp` and confirm `maps` shows **connected**. If it reports a `maps` scope conflict, an old entry in another scope is shadowing this one. Remove it, for example `claude mcp remove maps -s local`, then reconnect.
+
 ## Step 4: Start Your First MAPS Project
 
 In Claude Code, invoke `/maps` with your problem description:
@@ -61,6 +64,22 @@ MAPS will:
 7. ✓ Generate code
 8. ✓ Write and run tests
 9. ✓ Iterate until all tests pass
+
+## Trying `/mr-maps` at MetaRouter
+
+`/mr-maps` is the MetaRouter variant. Use it in any MetaRouter repository, where it maps work onto Shortcut epics and stories, with one git branch per story.
+
+Before you start:
+- Confirm the Shortcut MCP server is connected (run `/mcp`).
+- Gitignore the whole `.maps/` directory. `mr-maps` commits its deliverables to `docs/plans/sc-<epic#>/`, not `.maps/`.
+
+Then start it with a problem statement for a Shortcut epic:
+
+```
+/mr-maps Move audit logging for schemas CRUD onto a Postgres trigger
+```
+
+It writes and reviews a spec, breaks it into Shortcut stories, and builds each story on its own branch, with unit and Cypress tests passing before each commit. It makes local commits only. You push and open the merge requests. Full details are in the README and `docs/specs/10-mr-maps.md`.
 
 ## What to Expect
 
