@@ -91,10 +91,20 @@ The specification says "The system SHALL send email notifications within 60 seco
 
 ## Implementation Plan Structure
 
+Two sections bookend every plan. The **Executive Summary** opens the plan in plain
+language, so a manager can grasp the goal in under a minute. The **Code Comment
+Guidelines** close the plan and set the rule for comments in the code this plan
+produces. Keep both in every plan.
+
 ### Recommended Template
 
 ```markdown
 # Implementation Plan: [Catalog Item Name]
+
+## Executive Summary
+[2-4 plain-language sentences a non-engineer can read in under a minute. State what
+this plan builds and how it fits the larger specification. Avoid jargon. Clarity and
+brevity matter most. The technical detail lives in the sections below.]
 
 ## Spec Context
 [2-3 sentences summarizing the relevant specification requirement and this plan's
@@ -215,6 +225,14 @@ Written for each User-owned criterion, so a human can confirm it.
 
 [Any additional context the Developer needs — gotchas, performance considerations,
 patterns to follow from elsewhere in the codebase, etc.]
+
+## Code Comment Guidelines
+
+Avoid comments in code. Details around why code was written or what it does belong in
+the git commit, not in the source files. Comments which are absolutely vital (security
+warnings, "do not edit" notes) may be included in the source files. So-called 'step
+comments', i.e. '// initialize connection', '// provide user name', etc. should never
+be placed in source files.
 ```
 
 ---

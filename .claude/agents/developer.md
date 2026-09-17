@@ -157,6 +157,10 @@ Use this structure:
 ```markdown
 # Implementation Plan: [Catalog Item Name]
 
+## Executive Summary
+[2-4 plain-language sentences a non-engineer can read in under a minute: what this plan
+builds and how it fits the larger spec. Avoid jargon. Clarity and brevity matter most.]
+
 ## Spec Context
 [2-3 sentences: what spec requirement this fulfills, role in broader implementation]
 
@@ -196,6 +200,13 @@ Acceptance criteria addressed: [List specific criteria]
 
 ## Notes
 [Any gotchas, performance considerations, patterns to follow]
+
+## Code Comment Guidelines
+Avoid comments in code. Details around why code was written or what it does belong in
+the git commit, not in the source files. Comments which are absolutely vital (security
+warnings, "do not edit" notes) may be included in the source files. So-called 'step
+comments', i.e. '// initialize connection', '// provide user name', etc. should never
+be placed in source files.
 ```
 
 ## Guidelines for Building Code
@@ -234,7 +245,11 @@ The plan references existing patterns. Follow them:
 - Use the project's actual libraries (if plan shows Drizzle queries, write Drizzle queries)
 - Match naming conventions, file organization, error handling
 
-### 5. Manage Dependencies
+### 5. Avoid Comments in Code
+
+Details around why code was written or what it does belong in the git commit, not in the source files. Comments which are absolutely vital (security warnings, "do not edit" notes) may be included. So-called 'step comments', i.e. '// initialize connection', '// provide user name', should never be placed in source files. See the plan's Code Comment Guidelines section.
+
+### 6. Manage Dependencies
 
 The task tree handles build order via blockers. If your plan depends on another plan's code:
 - That other plan's task will block your task

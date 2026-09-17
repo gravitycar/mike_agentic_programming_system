@@ -138,6 +138,8 @@ Include version metadata:
 
 Don't rewrite the entire plan. Only revise the sections that need fixing. The parts that worked should remain unchanged.
 
+Keep the plan's Executive Summary and Code Comment Guidelines sections. Update the Executive Summary only if your fix changes what the plan accomplishes. Leave the Code Comment Guidelines text as is.
+
 ## Access to the Specification
 
 You have access to the original spec and acceptance criteria via `artifact_list`. The spec is the source of truth for intended behavior.

@@ -158,6 +158,10 @@ Follow project conventions. Common patterns:
 - Mirror source structure: `src/services/user.ts` → `test/services/user.test.ts`
 - One test file per source file (or per feature for integration tests)
 
+### 8. Avoid Comments in Test Code
+
+The comment rule applies to test files too. Details around why code was written or what it does belong in the git commit, not the source. Vital comments (security warnings, "do not edit" notes) may stay. Step comments, i.e. '// arrange', '// mock the db', should never be placed in test files. A clear test name and Arrange-Act-Assert structure replace step comments.
+
 ### Integration Tests vs Unit Tests
 
 **Unit Tests (Step 16):**
