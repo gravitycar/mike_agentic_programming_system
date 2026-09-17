@@ -33,6 +33,7 @@ The `/maps` command markdown defines workflow phases, references agent persona f
 - Activates the appropriate agent persona for each workflow step
 - Pauses for human review by presenting questions in the conversation
 - Tracks loop iterations via the task tree and respects hard limits
+- Routes each delegation to a model (`opus` or `sonnet`) by workflow step, via the Task tool's `model` parameter
 - On restart (new `/maps` invocation), picks up where things left off via `next_task`
 
 ## Responsibilities
@@ -127,6 +128,42 @@ Agent tasks are **delegated to fresh child sessions** via Claude Code's Task too
 
 **File tracker:**
 The Orchestrator maintains a running list of files created/modified by child sessions. This allows each subsequent child to review relevant established patterns without scanning the entire codebase.
+
+### Model Routing
+
+Each child session runs on a named model, passed as the `model` parameter on the Task tool call. Routing exists to cut token cost on the expensive parts of the workflow without weakening the parts that carry design risk.
+
+**Routing is per task, not per persona.** Four personas do jobs of different difficulty:
+- The Critic reviews specifications and plans, and separately triages test failures. Review is design judgment. Triage is classification.
+- The Developer designs implementation plans, and separately transcribes an approved plan into code. Design is hard. Transcription is not.
+
+Assigning one model per persona would over-pay for triage or under-serve plan writing. The workflow step is the routing key.
+
+**Mechanism.** The persona files in `.claude/agents/` are plain markdown with no YAML frontmatter, and children spawn as `subagent_type="general-purpose"`. A `model:` key in a persona file therefore has no effect. The Task call is the only place the model is set.
+
+**Routing table** (authoritative; the `/maps` command mirrors it in its Context Curation Table):
+
+| Step | Agent | Model |
+|------|-------|-------|
+| 2, 3 | Researcher | `sonnet` |
+| 4, 11 | Architect | `opus` |
+| 5, 8, 13 | Critic (review) | `opus` |
+| 10a-10c, 14a-14c | LLM Security Auditor | `opus` |
+| 12 | Developer (plans) | `opus` |
+| 15, 17c, 19c | Developer (build) | `sonnet` |
+| 16, 18, 20a | Test Writer | `sonnet` |
+| 17a, 19a, 20b | Critic (triage) | `sonnet` |
+| 17b, 19b | Reviser | `sonnet` |
+| 17d, 19d | Test Writer (revise) | `sonnet` |
+| 20a, 20c | Verifier | `opus` |
+| 6-7, 9-10, 14, 20d | Recording child (human review) | `sonnet` |
+
+**Rationale for the `opus` assignments:**
+- **Architect, Critic (review), LLM Security Auditor.** These produce and audit the design. A weak specification or a missed review finding propagates into every downstream step.
+- **Developer (plan writing, step 12).** A weak plan costs extra iterations in the test/fix loop, which is the most expensive loop in the workflow. Paying for plan quality is cheaper than paying for rework.
+- **Verifier.** It is judgment-only and assigns confidence levels to Acceptance Criteria. It runs a small number of times over small documents, so routing it to `sonnet` would save almost nothing while weakening the final gate.
+
+**Fallback.** If a step has no table row, or if the installed Claude Code version rejects the `model` parameter on the Task tool, the Orchestrator omits the parameter and the child inherits the session model. Model routing never blocks the workflow.
 
 ## Open Questions
 1. ~~How does the Orchestrator persist workflow state so it can survive process restarts? Is the task tree in the database sufficient, or do we need additional state?~~ **Resolved** — The task tree in the database is sufficient. An epic's progress is fully represented by its tasks' statuses — `done` tasks are complete, `open` tasks are ready, `blocked` tasks are waiting. On restart, `next_task` picks up where the process left off. Loop iteration counts are derived from the task tree (count completed sibling tasks of the same type under the parent). **Crash recovery**: On startup, the Orchestrator checks for any `in_progress` tasks. These are orphaned from a previous crash. For each, the Orchestrator sets the orphaned task's status to `orphaned` (a terminal state) and creates a new replacement task with additional context explaining that a previous attempt appears to have failed, so the agent should carefully examine the state of the file system to determine what, if anything, was already done.

@@ -125,6 +125,25 @@ Full `/maps` then re-enters at the spec-review step, not at step 1. The mapping 
 
 **Common case.** For a criterion like "input field `name` is now required," the acceptance test is often the very unit test the Test Writer already wrote — so verification reduces to: materialize one AT (pointing at that passing test) + one AC + blockers, and the orchestrator confirms. Near-zero marginal ceremony, rigor fully intact.
 
+## Model Routing
+`/maps-lite` uses the same rule as `/maps`: the model is chosen per **workflow step**, not per persona, and passed on the Task call. See [05-orchestrator.md](05-orchestrator.md#model-routing) for the mechanism and the rationale.
+
+| Step | Agent | Model |
+|------|-------|-------|
+| 3 | Researcher (context) | `sonnet` |
+| 4 | Architect (mini-spec) | `opus` |
+| 7, 10 | Developer (plan, plan update) | `opus` |
+| 8 | Critic (plan review) | `opus` |
+| 11 | Developer (build) | `sonnet` |
+| 12 | Test Writer | `sonnet` |
+| 13 | Critic (triage), Reviser, Developer, Test Writer | `sonnet` |
+| 14 | Test Writer (acceptance) | `sonnet` |
+| 14, 16 | Verifier | `opus` |
+| 15 | Critic (acceptance triage) | `sonnet` |
+| 6, 9, 16 | Recording child (human review) | `sonnet` |
+
+There is no LLM Security Auditor row: `/maps-lite` escalates those changes to `/maps` at the sizing gate.
+
 ## Loop Limits
 The existing limits are reused unchanged — no lite-specific caps:
 - **Test/fix loop:** 5 iterations.
@@ -142,6 +161,7 @@ Rationale: hard limits exist to bound *automated* loops from spinning forever; a
 - Architect-authored approach/criteria are gated by `question` tasks blocking the planning task.
 - Acceptance verification materializes AT/AC tasks with AT→AC→Epic blockers and records confidence; the Epic completes only when every AC is `done`.
 - Human review steps pause the workflow until the user responds, in the conversation.
+- Each delegation is routed to a model by workflow step, via the Task tool's `model` parameter.
 - Workflow state persists in the task tree; `/maps-lite` resumes via `next_task` and follows the same crash-recovery rules as `/maps` (orphan `in_progress` tasks on restart).
 - Code undo before rebuild uses `git checkout` + delete of new files, as in `/maps`.
 

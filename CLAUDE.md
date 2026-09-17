@@ -230,6 +230,7 @@ Forward-only. Never reopen completed tasks — create new ones instead.
 8. **Forward-only status lifecycle** — completed tasks are never reopened; create new tasks instead
 9. **Epic scoping** — all operations auto-scoped to current epic via config table
 10. **Compression on demand** — documents stored human-friendly, compressed when loaded into context
+11. **Model routing is per task, not per persona** — each delegation passes a `model` on the Task call. Design work (Architect, Critic reviews, LLM Security Auditor, plan writing, Verifier) uses `opus`. Mechanical work (research, code building, tests, triage, revision, story reconciliation, answer recording) uses `sonnet`. Personas carry no model setting
 
 ## Technology Stack
 

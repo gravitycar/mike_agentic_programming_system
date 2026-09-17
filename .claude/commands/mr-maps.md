@@ -214,10 +214,21 @@ The eight base personas and the Story Reconciler are not edited. All `mr-maps` b
 - **Test Writer (unit):** colocate tests per stack; commands runtime-discovered.
 - **Test Writer / Critic (Cypress):** the affected-spec selection rule, the UI-driven house rule, and coverage vigilance from Overlay 6.
 
+## Model Routing Overlay
+
+Base model routing applies unchanged. Read the base `Model Routing` section and the `Model` column of the base Context Curation Table. Two `mr-maps` steps are not in the base table:
+
+| Step | Agent | Model | Why |
+|------|-------|-------|-----|
+| 11b | Story Reconciler | sonnet | Matches catalog items to existing stories. Classification, not design. |
+| Overlay 5 loop | Developer (build), Test Writer (unit + Cypress), Critic (triage), Reviser | sonnet | Same work as base steps 15-19, which route to `sonnet`. |
+
+The Architect at step 11, the Critic at reviews #1 to #3, the LLM Security Auditor, the Developer at step 12, and the Verifier at Step 20 all stay on `opus`, as in the base.
+
 ## Inherited Unchanged (do not re-implement)
 
 Follow the base `maps.md` for all of these:
-- Session delegation model, the main loop, context curation, the file tracker.
+- Session delegation model, the main loop, context curation, model routing, the file tracker.
 - Human review: collect inline, record via a child session.
 - Critical review loops (3 iterations). Conditional LLM security review (2 iterations, skips when disabled).
 - Crash recovery, loop iteration tracking, error handling, one-child-at-a-time, forward-only status, epic scoping.

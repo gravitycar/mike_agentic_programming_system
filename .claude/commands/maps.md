@@ -23,6 +23,8 @@ Each agent task (researcher, architect, developer, critic, test_writer, reviser,
 - **Human review tasks** (`agent="user"`) → Handled inline in this conversation
 - **Orchestration tasks** (creating follow-up tasks, loop counting, crash recovery) → Handled by you directly
 
+Every delegation also carries a **model**. You pass it on the Task call. See [Model Routing](#model-routing).
+
 You NEVER perform agent work yourself. You construct a delegation prompt, spawn the child, and process its results.
 
 ## Workflow Steps (from 07-workflow.md)
@@ -151,6 +153,7 @@ Before delegating, gather the information the child will need:
 2. **Epic ID**: Call `config_get key="current_epic_id"`
 3. **Relevant artifacts**: Call `artifact_list` with appropriate filters (see Context Curation table below)
 4. **Source files to review**: From your running list of files created/modified by previous tasks
+5. **Model**: Read the `Model` column for this step in the Context Curation table below
 
 ### Step 2: Construct the Delegation Prompt
 
@@ -208,6 +211,7 @@ Use the Task tool to delegate:
 ```
 Task(
   subagent_type="general-purpose",
+  model=<model for this step, from the Context Curation table>,
   prompt=<constructed delegation prompt>,
   description="MAPS: <agent> - <task name>"
 )
@@ -230,35 +234,46 @@ If the child reports failure or the task is not `done`, handle accordingly:
 - If the child couldn't complete due to missing context, add context and re-delegate
 - If there's a blocking issue, surface it to the user
 
+## Model Routing
+
+Each delegation runs on a named model. You pass it on the Task call as `model=`.
+
+**Route by task, not by persona.** Several personas do jobs of different difficulty. The Critic reviews specifications and also triages test failures. The Developer designs implementation plans and also transcribes an approved plan into code. Design work gets `opus`. Mechanical work gets `sonnet`. Read the table row for the step you are delegating, not for the agent.
+
+**The persona files cannot set the model.** They are plain markdown with no frontmatter. Children spawn as `subagent_type="general-purpose"` and then read a persona file. A `model:` key inside a persona file has no effect. The Task call is the only place the model takes effect.
+
+**Fallback rule.** Two cases drop the parameter. A step is missing from the table, or this Claude Code version rejects `model` on the Task tool. In both cases omit `model=` and let the child inherit the session model. Never block the workflow on model routing. Say so once to the user, then continue.
+
 ## Context Curation Table
 
-When gathering artifacts for delegation, use this lookup to determine what each agent/step needs:
+When gathering artifacts for delegation, use this lookup to find the model and the artifacts each agent/step needs:
 
-| Step | Agent | Artifacts to Include | Notes |
-|------|-------|---------------------|-------|
-| 2 | Researcher (codebase) | — | Only needs epic description and file system access |
-| 3 | Researcher (web) | `codebase_summary` | Codebase summary guides web research |
-| 4 | Architect (spec) | `codebase_summary`, `web_research` | Both research summaries |
-| 5 | Critic (review #1) | `specification` | The spec to review |
-| 8 | Critic (review #2) | `specification`, previous `review_summary` | Revised spec + prior questions |
-| 10a | LLM Security Auditor (spec) | `specification`, resolved questions | Approved spec + codebase access for security audit |
-| 10c | LLM Security Auditor (spec #2) | `specification`, `security_review`, resolved questions | Spec + prior security review + user responses |
-| 11 | Architect (catalog) | `specification` | Approved spec |
-| 12 | Developer (plans) | `specification`, `catalog`, `codebase_summary` | Spec, catalog item, research |
-| 13 | Critic (review #3) | `specification`, all `implementation_plan`, previous questions | Spec + all plans |
-| 14a | LLM Security Auditor (plans) | `specification`, all `implementation_plan`, `security_review` (spec-level), resolved questions | Spec + all plans + prior security review |
-| 14c | LLM Security Auditor (plans #2) | `specification`, all `implementation_plan`, `security_review` (both), resolved questions | Spec + plans + both security reviews + user responses |
-| 15 | Developer (build) | `implementation_plan`, `specification` | Plan for this item + spec + source file list |
-| 16 | Test Writer (unit) | `specification`, `implementation_plan` | Spec + plans + built source files |
-| 17a | Critic (triage) | `specification`, `test_results`, `implementation_plan` | Spec + test output + plan + source code |
-| 17b | Reviser | `implementation_plan`, `triage_review`, `test_results`, `specification` | Current plan + triage + test output + spec |
-| 17c | Developer (rebuild) | `implementation_plan` (revised), `specification` | Revised plan + spec + source file list |
-| 17d | Test Writer (revise) | `triage_review`, `specification`, `test_results` | Triage feedback + spec + test files |
-| 18 | Test Writer (integration) | `specification`, `implementation_plan` | Same as step 16 but for integration tests |
-| 19a-d | (same as 17a-d) | (same as 17a-d) | Integration test triage/fix loop |
-| 20a | Test Writer (acceptance) | `specification`, `implementation_plan`, `test_results` | Run executable Acceptance Tests; reference existing tests, never duplicate |
-| 20a/20c | Verifier | `specification`, `implementation_plan`, `test_results`, `acceptance_verification` | Judge judgment-based ATs; confirm ACs — needs AC verification tables, manual procedures, and evidence artifacts (screenshots/benchmark output) |
-| 20b | Critic (acceptance triage) | `specification`, `test_results`, `implementation_plan` | Same as 17a, plus acceptance evidence |
+| Step | Agent | Model | Artifacts to Include | Notes |
+|------|-------|-------|---------------------|-------|
+| 2 | Researcher (codebase) | sonnet | — | Only needs epic description and file system access |
+| 3 | Researcher (web) | sonnet | `codebase_summary` | Codebase summary guides web research |
+| 4 | Architect (spec) | opus | `codebase_summary`, `web_research` | Both research summaries |
+| 5 | Critic (review #1) | opus | `specification` | The spec to review |
+| 8 | Critic (review #2) | opus | `specification`, previous `review_summary` | Revised spec + prior questions |
+| 10a | LLM Security Auditor (spec) | opus | `specification`, resolved questions | Approved spec + codebase access for security audit |
+| 10c | LLM Security Auditor (spec #2) | opus | `specification`, `security_review`, resolved questions | Spec + prior security review + user responses |
+| 11 | Architect (catalog) | opus | `specification` | Approved spec |
+| 12 | Developer (plans) | opus | `specification`, `catalog`, `codebase_summary` | Spec, catalog item, research |
+| 13 | Critic (review #3) | opus | `specification`, all `implementation_plan`, previous questions | Spec + all plans |
+| 14a | LLM Security Auditor (plans) | opus | `specification`, all `implementation_plan`, `security_review` (spec-level), resolved questions | Spec + all plans + prior security review |
+| 14c | LLM Security Auditor (plans #2) | opus | `specification`, all `implementation_plan`, `security_review` (both), resolved questions | Spec + plans + both security reviews + user responses |
+| 15 | Developer (build) | sonnet | `implementation_plan`, `specification` | Plan for this item + spec + source file list |
+| 16 | Test Writer (unit) | sonnet | `specification`, `implementation_plan` | Spec + plans + built source files |
+| 17a | Critic (triage) | sonnet | `specification`, `test_results`, `implementation_plan` | Spec + test output + plan + source code |
+| 17b | Reviser | sonnet | `implementation_plan`, `triage_review`, `test_results`, `specification` | Current plan + triage + test output + spec |
+| 17c | Developer (rebuild) | sonnet | `implementation_plan` (revised), `specification` | Revised plan + spec + source file list |
+| 17d | Test Writer (revise) | sonnet | `triage_review`, `specification`, `test_results` | Triage feedback + spec + test files |
+| 18 | Test Writer (integration) | sonnet | `specification`, `implementation_plan` | Same as step 16 but for integration tests |
+| 19a-d | (same as 17a-d) | sonnet | (same as 17a-d) | Integration test triage/fix loop |
+| 20a | Test Writer (acceptance) | sonnet | `specification`, `implementation_plan`, `test_results` | Run executable Acceptance Tests; reference existing tests, never duplicate |
+| 20a/20c | Verifier | opus | `specification`, `implementation_plan`, `test_results`, `acceptance_verification` | Judge judgment-based ATs; confirm ACs — needs AC verification tables, manual procedures, and evidence artifacts (screenshots/benchmark output) |
+| 20b | Critic (acceptance triage) | sonnet | `specification`, `test_results`, `implementation_plan` | Same as 17a, plus acceptance evidence |
+| 6-7, 9-10, 14, 20d | Recording child (human review) | sonnet | answers collected inline | Writes `task_update` calls only, no reasoning work |
 
 **Compression**: Before including large documents in the delegation prompt's file list, consider whether the child should compress them. Include this note in the delegation prompt when relevant: "Use the `compress` MCP tool on large documents before using them as working context."
 
@@ -292,7 +307,7 @@ When `next_task` returns a task with `agent="user"`:
 
 1. Fetch all relevant question tasks upfront with a **single** `task_list` call
 2. Present questions to the user one at a time — collect all answers in conversation (no MCP calls during Q&A)
-3. **Delegate recording to a child session** — the child calls `task_update` for each answer and marks the human-review task done
+3. **Delegate recording to a child session** (`model="sonnet"`) — the child calls `task_update` for each answer and marks the human-review task done
 4. After the child completes, proceed to `next_task` and create any follow-up tasks needed
 
 **Why delegate recording:** MCP tool results stay in context for the entire session. Recording N answers inline adds N `task_update` responses to the main context permanently. Delegating recording keeps that chatter in the child's context window, not yours.

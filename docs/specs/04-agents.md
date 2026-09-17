@@ -52,6 +52,7 @@ This document covers the general agent framework architecture. Each agent role h
 
 ## Requirements
 - Each agent persona has a clearly defined role with specific instructions and guidelines
+- Personas do not declare a model. The Orchestrator selects a model per workflow step and passes it on the Task call
 - The `/maps` command (Orchestrator) activates the appropriate persona for each task
 - Agent personas are markdown files in `.claude/agents/`, one per role. Each file is self-contained — there is no base template that personas extend
 - All task and artifact management goes through the MCP server tools
@@ -112,6 +113,9 @@ This replaces the earlier model where all agent personas operated within a singl
 **Human review tasks** (`agent="user"`) are still handled inline in the Orchestrator's conversation, since they require user interaction.
 
 **The Orchestrator never performs agent work itself** — it only manages task sequencing, constructs delegation prompts, spawns child sessions, and processes results.
+
+### Model routing is per task, not per persona
+A persona is not a model tier. Several personas cover work of very different difficulty: the Critic both reviews specifications and triages test failures, and the Developer both designs implementation plans and transcribes an approved plan into code. The model is therefore chosen by **workflow step**, and passed on the Task call as the `model` parameter. Personas carry no model setting. They are plain markdown with no frontmatter, and a `model:` key inside one has no effect. The routing table lives in [05-orchestrator.md](05-orchestrator.md#model-routing).
 
 ### Context sharing
 Context is shared between agent sessions exclusively through **documents on disk** and the **task/artifact database**. There is no shared conversation history between sessions. Agents retrieve documents via `artifact_list` and file reading. The Orchestrator curates which files each child session should review, based on summaries from previous sessions. Documents are the durable shared state.

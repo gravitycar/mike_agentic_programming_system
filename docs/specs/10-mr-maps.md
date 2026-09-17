@@ -162,6 +162,14 @@ The 30-file / 500-line budget is a **soft** guideline enforced at a **single che
 - Because this is a **plan-time estimate** (the code does not yet exist), the Architect *estimates* logical files/lines while sizing — no line-counting tooling and no "how does a tool classify boilerplate" problem. Delivered via the step-11 delegation contract — no persona edit.
 - **Granularity shift:** in `mr-maps`, one catalog item = one story sized to this budget, overriding stock MAPS's "~3 files per catalog item" default. This is what makes the sizing check meaningful and what lets a budget-sized slice often hold UI + backend together (Cypress runnable within one story), splitting into separate backend/UI stories only when the slice would blow the budget.
 
+## Model Routing
+Base routing applies unchanged. See [05-orchestrator.md](05-orchestrator.md#model-routing). Two `mr-maps` steps are not in the base table:
+
+| Step | Agent | Model | Why |
+|------|-------|-------|-----|
+| 11b | Story Reconciler | `sonnet` | It matches catalog items to existing stories. Classification, not design. |
+| Per-story build loop | Developer (build), Test Writer (unit + Cypress), Critic (triage), Reviser | `sonnet` | The loop replaces base steps 15-19, which already route to `sonnet`. |
+
 ## Requirements
 - Implemented as a Claude Code custom command (`.claude/commands/mr-maps.md`); Claude Code is the orchestrator, as in `/maps`. Stock `/maps` and `/maps-lite` are not modified.
 - Adds exactly one new persona, `.claude/agents/story-reconciler.md` (advisory: proposes reconciliation; the command executes side effects). The eight existing personas are unchanged; all MetaRouter behavior reaches them through the delegation contract.
@@ -172,6 +180,7 @@ The 30-file / 500-line budget is a **soft** guideline enforced at a **single che
 - Builds via the per-story loop: one branch per story (`<user>/<type>/sc-<story#>/<short-desc>`, ≤40 chars; type proposed by Developer, else asked); independent stories off `master`, dependents stacked; unit tests colocated; Cypress gate (targeted, UI-driven) passing before commit; local commits only.
 - Enforces the 30-file / 500-logical-line soft budget once, at catalog sizing, with Architect-proposed story splits; logical counts exclude comments, markdown, boilerplate, generated files, and all test files.
 - Human review steps pause the workflow until the user responds, in the conversation.
+- Each delegation is routed to a model by workflow step, via the Task tool's `model` parameter; the Story Reconciler and the per-story build loop use `sonnet`.
 - Workflow state persists in the task tree; `mr-maps` resumes via `next_task` and follows the same crash-recovery rules as `/maps`.
 
 ## Dependencies

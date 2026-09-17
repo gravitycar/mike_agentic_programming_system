@@ -24,6 +24,8 @@ Each agent task (researcher, architect, developer, critic, test_writer, reviser,
 - **Human review tasks** (`agent="user"`) → Handled inline in this conversation
 - **Orchestration** (scaffold creation, follow-up tasks, loop counting, blocker wiring, gates, crash recovery) → Handled by you directly
 
+Every delegation also carries a **model**. You pass it on the Task call. See [Model Routing](#model-routing).
+
 ### The Delegation Contract
 
 Every document-producing delegation carries a **`mode`** and a **`doc path`**:
@@ -140,6 +142,7 @@ while (true) {
 2. `config_get key="current_epic_id"`
 3. `artifact_list` for relevant artifacts (see [Context Curation](#context-curation-table))
 4. Relevant source files from your file tracker
+5. The `Model` column for this step in the [Context Curation Table](#context-curation-table)
 
 ### Step 2: Construct the Delegation Prompt
 
@@ -185,7 +188,7 @@ For a **document-mode** or non-authoring agent (Critic review, Test Writer, Veri
 
 ### Step 3: Spawn
 ```
-Task(subagent_type="general-purpose", prompt=<delegation prompt>, description="MAPS-lite: <agent> - <task name>")
+Task(subagent_type="general-purpose", model=<model for this step>, prompt=<delegation prompt>, description="MAPS-lite: <agent> - <task name>")
 ```
 One child at a time. Wait for it to return.
 
@@ -196,20 +199,32 @@ One child at a time. Wait for it to return.
 4. Update your file tracker
 5. Run any gate/loop logic, then `next_task()`
 
+## Model Routing
+
+Each delegation runs on a named model. You pass it on the Task call as `model=`.
+
+**Route by task, not by persona.** The same persona does jobs of different difficulty. The Critic reviews the plan and also triages test failures. The Developer designs the plan and also transcribes it into code. Design work gets `opus`. Mechanical work gets `sonnet`. Read the table row for the step you are delegating, not for the agent.
+
+**The persona files cannot set the model.** They are plain markdown with no frontmatter. Children spawn as `subagent_type="general-purpose"` and then read a persona file. A `model:` key inside a persona file has no effect. The Task call is the only place the model takes effect.
+
+**Fallback rule.** Two cases drop the parameter. A step is missing from the table, or this Claude Code version rejects `model` on the Task tool. In both cases omit `model=` and let the child inherit the session model. Never block the workflow on model routing.
+
 ## Context Curation Table
 
-| Step | Agent | mode | Artifacts to include |
-|------|-------|------|----------------------|
-| 3 | Researcher (context) | section:`context` | `change_brief` (own scaffold) |
-| 4 | Architect (mini-spec) | section:`mini-spec` | `change_brief` (context section) |
-| 7 | Developer (plan) | section:`plan` | `change_brief` (context + mini-spec) |
-| 8 | Critic (plan review) | document | `change_brief` |
-| 10 | Developer (plan update) | section:`plan` | `change_brief`, resolved `question` results |
-| 11 | Developer (build) | — | `change_brief` (plan section) + source files |
-| 12 | Test Writer (tests) | — | `change_brief` + built source files |
-| 13 | Critic/Reviser/Dev/TW (triage/fix) | document/section | `change_brief`, `test_results`, source code |
-| 14 | Test Writer / Verifier (acceptance) | document | `change_brief`, `test_results`, evidence artifacts |
-| 15 | Critic (acceptance triage) | document | `change_brief`, `test_results` |
+| Step | Agent | Model | mode | Artifacts to include |
+|------|-------|-------|------|----------------------|
+| 3 | Researcher (context) | sonnet | section:`context` | `change_brief` (own scaffold) |
+| 4 | Architect (mini-spec) | opus | section:`mini-spec` | `change_brief` (context section) |
+| 7 | Developer (plan) | opus | section:`plan` | `change_brief` (context + mini-spec) |
+| 8 | Critic (plan review) | opus | document | `change_brief` |
+| 10 | Developer (plan update) | opus | section:`plan` | `change_brief`, resolved `question` results |
+| 11 | Developer (build) | sonnet | — | `change_brief` (plan section) + source files |
+| 12 | Test Writer (tests) | sonnet | — | `change_brief` + built source files |
+| 13 | Critic/Reviser/Dev/TW (triage/fix) | sonnet | document/section | `change_brief`, `test_results`, source code |
+| 14 | Test Writer (acceptance) | sonnet | document | `change_brief`, `test_results`, evidence artifacts |
+| 14, 16 | Verifier (acceptance) | opus | document | `change_brief`, `test_results`, evidence artifacts |
+| 15 | Critic (acceptance triage) | sonnet | document | `change_brief`, `test_results` |
+| 6, 9, 16 | Recording child (human review) | sonnet | — | answers collected inline |
 
 The `mini-spec` section MUST express acceptance criteria in the standard `AC-N — <name>` + **Owner** form so acceptance verification works unchanged.
 
@@ -222,7 +237,7 @@ Maintain a running list of files created/modified by children (from their summar
 Same pattern as `/maps`:
 1. Fetch all relevant `question` tasks with a **single** `task_list` call
 2. Present them one at a time; collect answers in conversation (no MCP calls during Q&A)
-3. **Delegate recording to a child session** — it calls `task_update` for each answer and marks tasks `done`
+3. **Delegate recording to a child session** (`model="sonnet"`) — it calls `task_update` for each answer and marks tasks `done`
 4. Proceed to `next_task`
 
 **Why delegate recording:** it keeps N `task_update` responses out of the main context permanently.
