@@ -52,7 +52,7 @@ Documents have two homes, split by whether they are a MetaRouter deliverable or 
 - the epic specification, `<spec-name>.md`;
 - each story plan, `sc-<story#>_<slug>.md`.
 
-**Internal, kept under `.maps/`** (gitignored): research, the implementation catalog, critical reviews, the story-reconciliation proposal, test-result logs, security-audit reports.
+**Internal, kept under `.maps/`** (gitignored): research, the implementation catalog, critical reviews, the decision record, the story-reconciliation proposal, test-result logs, security-audit reports.
 
 Use this table in every Delegation Contract in place of the base "Output Paths" table. `<epic#>` is the Shortcut epic number from config. `<story#>` is the plan task's `shortcut_story_id`. `<slug>` is the lowercase kebab-case slug of the catalog item name.
 
@@ -61,12 +61,14 @@ Use this table in every Delegation Contract in place of the base "Output Paths" 
 | 2 | Researcher (codebase) | `.maps/docs/<epic-slug>/research/codebase-summary.md` | `codebase_summary` |
 | 3 | Researcher (web) | `.maps/docs/<epic-slug>/research/web-research.md` | `web_research` |
 | 4 | Architect (spec) | `docs/plans/sc-<epic#>/<spec-name>.md` | `specification` |
+| 4 | Architect (decision record) | `.maps/docs/<epic-slug>/specification/decisions.md` | `decision_record` |
 | 11 | Architect (catalog) | `.maps/docs/<epic-slug>/catalog/implementation-catalog.md` | `catalog` |
 | 11b | Story Reconciler | `.maps/docs/<epic-slug>/reconciliation/story-reconciliation.md` | `story_reconciliation` |
 | 12 | Developer (plan) | `docs/plans/sc-<epic#>/sc-<story#>_<slug>.md` | `implementation_plan` |
 
 Rules:
 - Always pass an explicit `doc path` in the Delegation Contract. Never let a persona fall back to its stock `.maps/docs/...` default. The persona default is wrong for committed documents in `mr-maps`.
+- The **decision record is the exception**: it stays internal under `.maps/` even though the spec it accompanies is committed. The Architect derives it from the spec's `doc path` by default, which is wrong here, so pass its path explicitly.
 - Register every document with its real path. The artifacts table stays the source of truth for lookup, so the split home is transparent to every agent.
 - The `<spec-name>` is a short kebab-case name for the spec, for example `audit-log-triggers.md`. Choose it once at step 4 and reuse it.
 

@@ -15,6 +15,7 @@ The Architect agent designs the high-level structure of the project. It writes s
 - Codebase summary (from Researcher)
 - Research summary (from Researcher)
 - Specification guidelines (`docs/guidelines/SPECIFICATION_GUIDELINES.md`)
+- The decision record (`decisions.md`), on any revision after the first draft
 - User feedback (during review loops)
 
 ## Outputs

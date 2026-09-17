@@ -228,6 +228,8 @@ Each delegation runs on a named model. You pass it on the Task call as `model=`.
 
 The `mini-spec` section MUST express acceptance criteria in the standard `AC-N — <name>` + **Owner** form so acceptance verification works unchanged.
 
+**No decision record.** `/maps-lite` produces no `decisions.md`. The record exists in `/maps` because a spec survives three review rounds and accumulates reasoning. A lite change has one review pass and one document. Reasoning that needs recording goes in the `mini-spec` section, in a sentence. A change whose reasoning outgrows a sentence has outgrown the lite lane, so escalate it.
+
 **Compression**: Every delegation prompt tells the child to compress every context document. Include this block verbatim:
 
 > For each context document below, call the `compress` MCP tool with its `file_path` and use the text it returns. Do NOT read the file yourself first. Reading it and then compressing it puts both copies in your context, which costs more than not compressing. Compression is for reading only: when you write or revise a document, write normal human-readable markdown to its path. Never save compressed text over a document.

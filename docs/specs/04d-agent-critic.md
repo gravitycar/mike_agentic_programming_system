@@ -5,21 +5,25 @@
 ## Overview
 The Critic agent performs critical reviews at multiple points in the workflow, identifying open questions, gaps, and issues. It also triages test failures to determine whether the code or the tests are at fault.
 
+Reviews run on two dimensions, not one. **Omission** is what the document fails to say. **Excess** is what it says more than once, at more length than it needs, or after the statement stopped being true. The Critic is the only agent positioned to catch excess, because it sees the document at every round while the Architect sees only the revision it was asked for.
+
 ## Workflow Steps
-- **Step 5**: Critical Review #1 — review the specification, add open questions for unaddressed concerns
+- **Step 5**: Critical Review #1 — review the specification for omission and excess, add open questions for unaddressed concerns, add cut directives for excess
 - **Step 8**: Critical Review #2 — review the revised spec for new or still-unaddressed open questions
-- **Step 13**: Critical Review #3 — review each implementation plan against the spec and previously resolved open questions
+- **Step 13**: Critical Review #3 — review each implementation plan against the spec and previously resolved open questions, on both dimensions
 - **Step 17a**: Test failure triage — review failing tests against the spec, acceptance criteria, and code to determine cause
 - **Step 20b**: Acceptance Test failure triage — same triage applied to failed Acceptance Tests reported by the Verifier during acceptance verification
 
 ## Inputs
 - Specification (for reviews #1 and #2)
+- The decision record (for reviews #2 and #3), so a settled decision is not re-opened as a fresh question
 - Previously resolved open questions (for review #3)
 - Implementation plans (for review #3)
 - Failing test output, test code, implementation code, and relevant spec sections (for triage)
 
 ## Outputs
 - Open questions (created as `question` tasks in the database)
+- **Cut directives** — a `## Cut Directives` section in the review summary, never `question` tasks. Mechanical excess needs no user arbitration, and counting it as open questions would hold the review loop open until its iteration limit every time, because a document can always be tightened further. The Architect applies them on the next revision
 - Review summary artifacts (stored in `.maps/docs/<epic-slug>/reviews/`)
 - Triage determination: code is wrong, test is wrong, both, or criterion/spec is wrong (for test and acceptance failure triage)
 

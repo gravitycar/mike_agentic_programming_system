@@ -3,7 +3,7 @@
 ## Status: Draft
 
 ## Overview
-The MAPS workflow produces several key documents: the specification, the implementation catalog, and individual implementation plans. This spec defines how these documents are stored, retrieved, versioned, and compressed.
+The MAPS workflow produces several key documents: the specification, its decision record, the implementation catalog, and individual implementation plans. This spec defines how these documents are stored, retrieved, versioned, and compressed.
 
 ## Context
 From the initial design notes, the following document types are produced during the workflow:
@@ -14,6 +14,7 @@ From the initial design notes, the following document types are produced during 
 | Codebase Summary | Step 2 | Agent's summary of the current codebase state |
 | Research Summary | Step 3 | Agent's summary of web research on the problem domain |
 | Specification | Step 4 | Full spec document written from a template, no code examples |
+| Decision Record | Step 4, updated on every spec revision | `decisions.md`, beside the spec. Design decisions, the reasoning behind them, rejected options, and reversals. Read by the Architect and the Critic, never by downstream agents |
 | Open Questions | Steps 5, 8, 13 | Questions surfaced during critical reviews |
 | Implementation Catalog | Step 11 | Concise list of everything to build |
 | Implementation Plans | Step 12 | Detailed build plans with code examples and tests |

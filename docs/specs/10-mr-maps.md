@@ -54,7 +54,9 @@ Two homes, split by whether the document is a MetaRouter deliverable or MAPS's i
 - **Committed to git**, under `docs/plans/sc-<epic#>/` (flat, matching the existing `sc-40464/` convention):
   - the epic **specification**, `<spec-name>.md`;
   - each **story plan**, `sc-<story#>_<slug>.md`.
-- **Internal, kept in `.maps/`** (gitignored): research summaries, the implementation **catalog**, critical reviews, test-result logs, security-audit reports.
+- **Internal, kept in `.maps/`** (gitignored): research summaries, the implementation **catalog**, critical reviews, the **decision record**, test-result logs, security-audit reports.
+
+The decision record is the one document whose home differs from the spec it accompanies. The spec is committed; its `decisions.md` is not. The Architect derives the record's path from the spec's `doc path` by default, which lands it in `docs/plans/` here, so `mr-maps` passes its path explicitly.
 
 Mechanics (no persona change, no server change):
 - The MCP server stores `file_path` verbatim; document lookup is via the `artifacts` table, so a split home is transparent — each document is findable at its registered path regardless of tree.

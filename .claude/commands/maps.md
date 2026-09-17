@@ -252,14 +252,14 @@ When gathering artifacts for delegation, use this lookup to find the model and t
 |------|-------|-------|---------------------|-------|
 | 2 | Researcher (codebase) | sonnet | — | Only needs epic description and file system access |
 | 3 | Researcher (web) | sonnet | `codebase_summary` | Codebase summary guides web research |
-| 4 | Architect (spec) | opus | `codebase_summary`, `web_research` | Both research summaries |
+| 4 | Architect (spec) | opus | `codebase_summary`, `web_research` | Both research summaries. Writes the spec AND the decision record |
 | 5 | Critic (review #1) | opus | `specification` | The spec to review |
-| 8 | Critic (review #2) | opus | `specification`, previous `review_summary` | Revised spec + prior questions |
+| 8 | Critic (review #2) | opus | `specification`, previous `review_summary`, `decision_record` | Revised spec + prior questions. The decision record shows what is already settled |
 | 10a | LLM Security Auditor (spec) | opus | `specification`, resolved questions | Approved spec + codebase access for security audit |
 | 10c | LLM Security Auditor (spec #2) | opus | `specification`, `security_review`, resolved questions | Spec + prior security review + user responses |
 | 11 | Architect (catalog) | opus | `specification` | Approved spec |
 | 12 | Developer (plans) | opus | `specification`, `catalog`, `codebase_summary` | Spec, catalog item, research |
-| 13 | Critic (review #3) | opus | `specification`, all `implementation_plan`, previous questions | Spec + all plans |
+| 13 | Critic (review #3) | opus | `specification`, all `implementation_plan`, previous questions, `decision_record` | Spec + all plans. The decision record shows what is already settled |
 | 14a | LLM Security Auditor (plans) | opus | `specification`, all `implementation_plan`, `security_review` (spec-level), resolved questions | Spec + all plans + prior security review |
 | 14c | LLM Security Auditor (plans #2) | opus | `specification`, all `implementation_plan`, `security_review` (both), resolved questions | Spec + plans + both security reviews + user responses |
 | 15 | Developer (build) | sonnet | `implementation_plan`, `specification` | Plan for this item + spec + source file list |
@@ -274,6 +274,8 @@ When gathering artifacts for delegation, use this lookup to find the model and t
 | 20a/20c | Verifier | opus | `specification`, `implementation_plan`, `test_results`, `acceptance_verification` | Judge judgment-based ATs; confirm ACs — needs AC verification tables, manual procedures, and evidence artifacts (screenshots/benchmark output) |
 | 20b | Critic (acceptance triage) | sonnet | `specification`, `test_results`, `implementation_plan` | Same as 17a, plus acceptance evidence |
 | 6-7, 9-10, 14, 20d | Recording child (human review) | sonnet | answers collected inline | Writes `task_update` calls only, no reasoning work |
+
+**The `decision_record` is not general context.** `artifact_list` returns it like any other artifact, but include it **only** at the steps that list it above: the Architect on a spec revision, and the Critic at reviews #2 and #3. It holds the reasoning behind decisions, which those two need in order to avoid re-opening settled ground. Nobody downstream does. A Developer building from an approved plan, a Test Writer, a Reviser and a Verifier all need the decision, and the spec already states it. Passing the decision record to them re-imports the tokens this split exists to remove.
 
 **Compression**: Every delegation prompt tells the child to compress every context document. Include this block verbatim:
 
@@ -290,6 +292,7 @@ For each document-producing task, pass `mode: document` + `doc path` + `artifact
 | 2 | Researcher (codebase) | `.maps/docs/<epic-slug>/research/codebase-summary.md` | `codebase_summary` |
 | 3 | Researcher (web) | `.maps/docs/<epic-slug>/research/web-research.md` | `web_research` |
 | 4 | Architect (spec) | `.maps/docs/<epic-slug>/specification/spec.md` | `specification` |
+| 4 | Architect (decision record) | `.maps/docs/<epic-slug>/specification/decisions.md` | `decision_record` |
 | 11 | Architect (catalog) | `.maps/docs/<epic-slug>/catalog/implementation-catalog.md` | `catalog` |
 | 12 | Developer (plan) | `.maps/docs/<epic-slug>/plans/<slug>.md` — derive `<slug>` from the catalog item name (lowercase kebab-case, e.g. `jwt-middleware.md`) | `implementation_plan` |
 
@@ -395,6 +398,8 @@ Critical reviews (steps 5, 8, 13) have a **3-iteration hard limit**:
 **Termination conditions:**
 - Critic finds zero new questions AND
 - User signs off
+
+**Cut directives do not gate the loop.** A Critic review summary may carry a `## Cut Directives` section alongside its questions. Those are not open questions and they are not counted here. Pass them to the Architect with the next revision, which applies them without user arbitration. Counting them would hold the loop open until it hit the iteration limit every time, because a document can always be tightened further.
 
 If the limit is reached:
 ```

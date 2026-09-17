@@ -12,9 +12,10 @@ This guide synthesizes best practices from industry leaders (GitHub, Thoughtwork
 4. [Writing Effective Requirements](#writing-effective-requirements)
 5. [The Constitution Layer](#the-constitution-layer)
 6. [Common Pitfalls to Avoid](#common-pitfalls-to-avoid)
-7. [Specification Templates](#specification-templates)
-8. [Verification and Testing](#verification-and-testing)
-9. [Living Specifications](#living-specifications)
+7. [Verification and Testing](#verification-and-testing)
+8. [Living Specifications](#living-specifications)
+9. [Quick Reference: Specification Checklist](#quick-reference-specification-checklist)
+10. [Conclusion](#conclusion)
 
 ---
 
@@ -234,9 +235,12 @@ As a [user type], I want [capability], so that [benefit].
 
 ⚠️ **Critical Section** - What NOT to build or change
 
-- Do NOT [constraint with reasoning]
-- Do NOT [constraint with reasoning]
-- Must NOT [constraint with reasoning]
+- Do NOT [constraint] — [one clause of reasoning]
+- Do NOT [constraint] — [one clause of reasoning]
+- Must NOT [constraint] — [one clause of reasoning]
+
+[One clause each. A constraint whose justification needs a paragraph is a design
+decision: state the constraint here and record the argument in decisions.md.]
 
 ## Technical Context
 
@@ -342,15 +346,22 @@ POST /api/v2/notifications
 
 - [Feature that might be assumed but isn't included]
 - [Related work deferred to future phases]
-- [Alternative approaches considered but rejected]
+
+[Do not list alternative approaches that were considered and rejected. Record those in
+decisions.md. A rejected approach sitting among the requirements is something an
+implementer can build by mistake.]
 
 ## Open Questions
 
-[Unresolved decisions that need stakeholder input]
+[Unresolved decisions that need stakeholder input. An open question carries its options
+because somebody still has to choose between them.]
 
 1. **Question**: [What needs to be decided?]
    - **Options**: [Alternatives being considered]
    - **Decision by**: [Date or milestone]
+
+[When a question is resolved, reduce it here to one line — the question, the answer, the
+date — and record the reasoning in decisions.md, as the decision it produced.]
 
 ## Appendices
 
@@ -384,8 +395,14 @@ When your specification involves complex third-party integrations or technical i
 
 ### Version History
 
+[One row per version. Keep each Changes cell to a single line naming what changed.
+Not why: record the reasoning in decisions.md, with the decision it produced. Not the
+diff: git holds that. A cell that wants a paragraph is a decision, so record it there
+and leave a single line here.]
+
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.1.0 | YYYY-MM-DD | Name | Added SMS quiet hours |
 | 1.0.0 | YYYY-MM-DD | Name | Initial specification |
 ```
 
@@ -511,6 +528,14 @@ The constitution is **project-specific knowledge** that lives in code review com
 
 ## Common Pitfalls to Avoid
 
+Pitfalls come in two kinds and this list covers both.
+
+**Pitfalls 1 to 8 are pitfalls of omission.** Something the implementer needs is missing, so they guess. Each one is fixed by adding.
+
+**Pitfalls 9 to 12 are pitfalls of excess.** The requirement is present but buried, so the implementer has to search for it. Each one is fixed by cutting.
+
+Neither kind is worse than the other. A spec nobody can find the requirement in fails the same way as a spec that never stated it. Read both halves before you decide a draft is finished, and apply the second half on **every revision**, not only on the first draft. A revision that only adds leaves the spec longer every time, and after three review passes the requirements are buried in the reasoning that produced them.
+
 ### 1. Over-Specifying Implementation Details
 
 **Problem**: Constraining the "how" instead of the "what"
@@ -596,13 +621,25 @@ Write spec → Implement → Update spec based on learnings → Spec reflects re
 
 ### 6. Skipping the "Why"
 
-**Problem**: Specifying what without explaining why
+**Problem**: A non-obvious decision is stated with no reason, so the implementer cannot tell a real constraint from an arbitrary choice
 
 ```
-❌ Bad:
+❌ Bad (no reason, so the constraint looks arbitrary):
 "Notifications must support retry with exponential backoff"
 
-✅ Good:
+✅ Good (the reason, once, in one sentence):
+"Notifications must support retry with exponential backoff. The provider
+rate-limits immediate retries and fails transiently 5-10% of the time."
+```
+
+**Bound this rule three ways.** Unbounded, it is the largest single source of specification bloat, because it applies to every requirement and grows on every revision.
+
+1. **Only where the reason is non-obvious.** A requirement whose reason any senior developer would infer needs no justification. "Passwords are hashed at rest" does not need a paragraph.
+2. **One or two sentences.** If the reason needs more than that, it is a design decision rather than a note. Record it in `decisions.md` and reference it from here.
+3. **Once, at the decision.** Never restate the reason where the decision is referenced. See pitfall 9.
+
+```
+❌ Also bad (the same requirement, over-justified):
 "Notifications must support retry with exponential backoff because:
 - Email providers have transient failures (5-10% rate)
 - Immediate retries can trigger rate limits
@@ -610,7 +647,9 @@ Write spec → Implement → Update spec based on learnings → Spec reflects re
 - User expectations: notifications arrive within 60 seconds"
 ```
 
-**Lesson** (Augment Code, EPAM): The "why" helps AI make better implementation decisions and helps future developers understand context.
+Two of those four bullets are the reason. The other two are requirements in disguise: 99.9% delivery reliability and a 60-second delivery target are verifiable, so they belong in Non-Functional Requirements where a test can reach them. Justification is where requirements go to hide from verification.
+
+**Lesson** (Augment Code, EPAM): The "why" helps AI make better implementation decisions and helps future developers understand context. An unbounded "why" buries the "what" it was meant to support.
 
 ### 7. Missing the "Do NOT" Section
 
@@ -650,6 +689,77 @@ Write spec → Implement → Update spec based on learnings → Spec reflects re
 
 **Lesson**: Non-functional requirements often determine architecture more than functional requirements.
 
+### 9. Explaining a Decision More Than Once
+
+**Problem**: The rationale is repeated wherever the decision is referenced
+
+```
+❌ Bad (the same reason, restated at each of four sites):
+§4  "Use ranked paging, because the predecessor lookup needs a stable window
+     and offset paging shifts rows under it."
+§7  "Paging is ranked, chosen because the predecessor lookup needs a stable
+     window that offset paging would shift."
+§9  "The list pages by rank. Offset paging would shift the window the
+     predecessor lookup depends on."
+
+✅ Good (stated once, referenced after):
+§4  "Use ranked paging. The predecessor lookup needs a stable window (D4)."
+§7  "Paging is ranked, per §4."
+§9  "The list pages by rank, per §4."
+```
+
+**Lesson**: A reader who wants the reason follows one reference. A reader who wants the requirement should not have to read the reason three more times to reach it.
+
+### 10. Padding a Requirement With Its Own Restatement
+
+**Problem**: A second sentence says what the first one already said
+
+```
+❌ Bad:
+"The modal SHALL list only entries referencing the opened record. This means
+that entries referencing a different record of the same type are excluded, and
+the listing is therefore scoped to the opened record rather than to the entity
+type as a whole."
+
+✅ Good:
+"The modal SHALL list only entries referencing the opened record. Entries
+referencing a different record of the same type are excluded."
+```
+
+**Lesson**: Cut any sentence that restates the one before it. Restatement reads as emphasis to the author and as a second, subtly different requirement to the implementer.
+
+### 11. Keeping Superseded Text Beside Current Text
+
+**Problem**: The spec argues with its earlier drafts inside the requirement
+
+```
+❌ Bad:
+"Restructured per D36. v2.0.0 sequenced the epic horizontally, which left one
+story as the last-enabling seam for seven test specs and roughly twenty
+criteria. D36 re-cuts the middle so a vertical skeleton lands early."
+
+✅ Good:
+"The epic is cut vertically. A skeleton lands first and every later seam carries
+its own test spec (D36)."
+```
+
+**Lesson**: A specification states the design that survived. Record the design that did not survive in `decisions.md`, not in the requirement. An implementer who reads the rejected shape can build it by mistake.
+
+### 12. Keeping Closed Questions at Full Length
+
+**Problem**: Resolved questions keep the space they earned while they were open
+
+```
+❌ Bad:
+"### 17.2 Retention — CLOSED by D39
+ [six paragraphs of options, objections, and the reasoning that closed it]"
+
+✅ Good:
+"| OQ-2 | Retention of legacy entries | RESOLVED 2026-09-04 — 90 days (D39) |"
+```
+
+**Lesson**: An open question earns room because somebody has to act on it. A closed one earns a line. Record the reasoning in `decisions.md`, with the decision it produced, not in the question it answered.
+
 ---
 
 ## Verification and Testing
@@ -683,54 +793,61 @@ Write spec → Implement → Update spec based on learnings → Spec reflects re
 
 ## Living Specifications
 
-**Key Insight** (Multiple sources): Specs must evolve with understanding
+A specification is a living document. Living means the current version is accurate. It does not mean the document accumulates.
 
-### Version Control Specifications
+Everything a spec no longer asserts belongs somewhere else, and there is already a place for each kind:
 
-```markdown
-# Notification System Specification
+| What | Where it belongs | Why not in the spec |
+|------|------------------|---------------------|
+| Earlier versions of the document | git | The spec is committed at sign-off, so every earlier state is recoverable in full |
+| Questions put to the user, and their answers | `question` tasks, in each task's `results` | Already structured and queryable. Prose in the spec is a second copy that drifts |
+| Design decisions and the reasoning behind them | `decisions.md`, beside the spec | An implementer needs the decision. The argument that produced it has a different reader |
+| Build progress | task statuses | A section marked IMPLEMENTED goes stale the moment a task moves |
 
-**Version**: 1.2.0
-**Status**: Approved
+The spec carries one thing: **the design as it stands now.** Not how it got there.
 
-## Version History
+### The Decision Record
 
-| Version | Date | Author | Changes | Rationale |
-|---------|------|--------|---------|-----------|
-| 1.2.0 | 2024-02-15 | Alice | Added SMS quiet hours | User feedback: nighttime SMS complaints |
-| 1.1.0 | 2024-01-20 | Bob | Clarified retry intervals | Implementation revealed ambiguity |
-| 1.0.0 | 2024-01-01 | Alice | Initial specification | New feature kickoff |
-```
+`decisions.md` sits beside the spec and holds the reasoning the spec does not carry.
+
+| Goes in the spec | Goes in `decisions.md` |
+|------------------|------------------------|
+| The decision, stated as a requirement | Why that decision, at any length it needs |
+| A one-or-two-sentence reason, where the reason is non-obvious | The options considered and why they lost |
+| A `(D-N)` reference to the full reasoning | Reversals: what changed, and what it replaced |
+
+The two documents have different readers. Everyone who builds from the spec needs the decision. Only a reviewer, and the author on the next revision, need the argument that produced it. So record what was decided in the spec, and record the argument that produced it in `decisions.md`.
+
+Decisions recorded in `decisions.md` are never deleted. A reversal is a new entry naming the entry it supersedes. The spec then states only the design that now stands.
 
 ### When to Update Specifications
 
-**Update specs when:**
-- Requirements change based on user feedback
-- Implementation reveals ambiguities or contradictions
-- Edge cases discovered during development
-- Performance targets adjusted based on reality
-- New constraints discovered (e.g., third-party API limits)
+You never decide on your own to revise the spec. You are given a task that says to. What differs is what prompted that task, and that is what tells you which parts to change.
 
-**Don't update specs for:**
-- Implementation details (those go in the plan)
-- Refactoring decisions (architectural notes)
-- Bug fixes that don't change requirements
+**Revise the spec when your task carries:**
+- User feedback from spec review
+- Critic findings from a critical review
+- Answers to open questions the user has now resolved
+- A superseding specification task, created when acceptance verification found that a criterion or the spec itself was wrong
 
-### Spec Review Cadence
+In every case, change what the input actually calls for. Resist the pull to re-justify the surrounding text while you are in it. That is how a targeted revision turns into a longer document.
 
-**During implementation:**
-- Review spec at start of each work session
-- Update spec when discovering ambiguities
-- Mark sections "IMPLEMENTED" as work completes
+**Do not change the spec for:**
+- Implementation details, which go in the plan
+- Refactoring decisions, which are architectural notes
+- Bug fixes that do not change a requirement
+- Recording that something was built, which is what task status is for
+- Recording that a decision was reversed, which is what `decisions.md` is for
 
-**After implementation:**
-- Final spec update reflecting "as-built" reality
-- Document deviations from original spec with rationale
-- Archive spec with implementation PR for future reference
+### How Specifications Change After Sign-Off
+
+The user signs the spec off and it is committed to git. After that the spec is not edited freely.
+
+When verification shows that a criterion or the spec itself is wrong, the workflow escalates to the user, who decides whether to amend. An amendment creates **new superseding specification, plan and verification tasks**. It is not a silent in-place edit, so the change is visible in the task tree as well as in git.
+
+This is why a spec needs no deviation log. A deviation that mattered enough to act on produced tasks, and those tasks are the record. A deviation that produced no tasks was not a deviation.
 
 ---
-
-## 
 
 ## Quick Reference: Specification Checklist
 
@@ -764,7 +881,7 @@ Use this checklist before finalizing any specification:
 - [ ] Constitution referenced for architectural patterns
 - [ ] Existing systems and services identified
 - [ ] Current patterns and conventions respected
-- [ ] "Why" explained for non-obvious requirements
+- [ ] "Why" explained for non-obvious requirements, in one or two sentences, stated once (pitfall 6)
 - [ ] Related specifications linked
 
 ### AI-Readiness
@@ -773,6 +890,18 @@ Use this checklist before finalizing any specification:
 - [ ] Clear separation of "what" vs "how"
 - [ ] Examples and patterns provided
 - [ ] Verification approach defined
+
+### Concision
+
+Run this group last, after the other four confirm the spec is complete. You cannot cut what you have not finished writing. Run it again on every revision, because a revision that only adds leaves the spec longer every time.
+
+- [ ] No decision is explained in more than one place (pitfall 9)
+- [ ] No sentence restates the sentence before it (pitfall 10)
+- [ ] Rejected options and superseded designs are out of the requirements (pitfall 11)
+- [ ] Closed questions are one line each (pitfall 12)
+- [ ] Version History cells are one line each, naming what changed and not why
+- [ ] Every section that grew during this revision was re-read for restatement
+- [ ] This revision cut something, or you confirmed there was nothing to cut
 
 ---
 
@@ -783,7 +912,7 @@ Effective specifications are the foundation of successful AI-assisted developmen
 1. **Serve humans first** - Clear enough for team understanding and alignment
 2. **Guide AI agents** - Structured enough for automated implementation
 3. **Prevent waste** - Reduce rework by front-loading decisions
-4. **Preserve knowledge** - Capture the "why" for future teams
+4. **Preserve knowledge** - Capture the "why" once, in `decisions.md`
 5. **Enable verification** - Map directly to acceptance tests
 6. **Stay living** - Evolve with implementation learnings
 

@@ -57,7 +57,7 @@ Loop iteration counts are derived from the task tree (count completed sibling ta
 ### Looping
 - Track loop iterations via the task tree (count completed sibling tasks of the same type)
 - Respect hard limits defined in the command instructions:
-  - **Critical review loop** (Critic finds questions → user answers → Critic re-reviews): **3 iterations**. If the Critic is still finding new questions after 3 rounds, something deeper is wrong and needs human intervention.
+  - **Critical review loop** (Critic finds questions → user answers → Critic re-reviews): **3 iterations**. If the Critic is still finding new questions after 3 rounds, something deeper is wrong and needs human intervention. **Cut directives are not questions and do not count toward this loop** — they pass to the Architect with the next revision and are applied without user arbitration.
   - **Test/fix loop** (test → triage → fix → retest): **5 iterations**. Code fixes can take a few attempts.
   - **Acceptance verification loop** (Step 20b: acceptance test → triage → fix → re-verify): **5 iterations**, same as the test/fix loop.
   - **Spec review loop** (user feedback → revise → re-review): **no hard limit** — this is human-driven and ends when the user signs off.
