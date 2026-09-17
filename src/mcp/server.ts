@@ -3,6 +3,8 @@
  * Per spec 03-mcp-server.md
  */
 
+import { readFileSync, statSync } from 'node:fs';
+import { isAbsolute, resolve } from 'node:path';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -10,7 +12,7 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { MapsDatabase } from '../db/database.js';
-import { MapsError } from './errors.js';
+import { MapsError, NotFoundError, ValidationError } from './errors.js';
 import {
   taskCreate,
   taskGet,
@@ -39,6 +41,7 @@ import { compress } from '../compressor/compress.js';
 export class MapsServer {
   private server: Server;
   private database: MapsDatabase | null = null;
+  private projectPath: string | null = null;
 
   constructor() {
     this.server = new Server(
@@ -242,13 +245,21 @@ export class MapsServer {
         // Compression
         {
           name: 'compress',
-          description: 'Compress markdown text using semantic densification',
+          description:
+            'Read a markdown document from disk and return a semantically densified version. ' +
+            'Pass the path, not the text: reading the document yourself first defeats the purpose, ' +
+            'because the uncompressed copy then sits in your context alongside the compressed one. ' +
+            'The file on disk is never modified.',
           inputSchema: {
             type: 'object',
             properties: {
-              text: { type: 'string', description: 'Markdown text to compress' },
+              file_path: {
+                type: 'string',
+                description:
+                  'Path to the markdown document. Relative paths resolve against the project root.',
+              },
             },
-            required: ['text'],
+            required: ['file_path'],
           },
         },
 
@@ -282,9 +293,9 @@ export class MapsServer {
 
         // Special case: compress doesn't need database
         if (name === 'compress') {
-          const result = compress((args as any).text);
+          const source = this.readDocument((args as any).file_path);
           return {
-            content: [{ type: 'text', text: result }],
+            content: [{ type: 'text', text: compress(source) }],
           };
         }
 
@@ -382,7 +393,38 @@ export class MapsServer {
   }
 
   initDatabase(projectPath: string) {
+    this.projectPath = resolve(projectPath);
     this.database = new MapsDatabase(projectPath);
+  }
+
+  /**
+   * Read a document for compression.
+   *
+   * The tool takes a path rather than the document's text so the caller never
+   * has to pull the uncompressed document into its context first. Passing text
+   * meant the caller held the original AND the compressed copy, which cost more
+   * context than not compressing at all.
+   */
+  private readDocument(filePath: string): string {
+    if (typeof filePath !== 'string' || filePath.trim() === '') {
+      throw new ValidationError('file_path is required and must be a non-empty string');
+    }
+
+    const base = this.projectPath ?? process.cwd();
+    const absolute = isAbsolute(filePath) ? filePath : resolve(base, filePath);
+
+    let stats;
+    try {
+      stats = statSync(absolute);
+    } catch {
+      throw new NotFoundError(`No file at ${absolute}`);
+    }
+
+    if (!stats.isFile()) {
+      throw new ValidationError(`${absolute} is not a file`);
+    }
+
+    return readFileSync(absolute, 'utf-8');
   }
 
   async run() {

@@ -89,7 +89,7 @@ mike_agentic_programming_system/
 │   │   ├── errors.ts                  # MapsError + 5 error categories
 │   │   └── tools/                     # task/epic/blocker/artifact/config/project-init tools
 │   └── compressor/
-│       └── compress.ts                # 4-pass semantic densification
+│       └── compress.ts                # 3-pass semantic densification
 └── docs/
     ├── napkin/
     │   └── InitialDesignNotes.md      # Original design vision
@@ -156,7 +156,7 @@ Read these specs in order — later specs depend on earlier ones.
 | **04-agents.md** | General agent framework | Personas not processes, eight roles, two-layer architecture, context sharing |
 | **04a-04g** | Individual agent specs (incl. **04g Verifier** — acceptance verification) | Role-specific inputs, outputs, success criteria, behavioral guidelines |
 | **05-orchestrator.md** | `/maps` command behavior | Crash recovery, hard limits (3/5/unlimited), session model, code undo |
-| **06-compressor.md** | Semantic densification | 4-pass rule-based compression, 30-50% token reduction, code blocks excluded |
+| **06-compressor.md** | Semantic densification | 3-pass rule-based compression, lossless at the word level, compress every document by path, code blocks excluded |
 | **07-workflow.md** | 20-step workflow | Sequential execution, review loops, integration testing, backward navigation |
 | **08-project-setup.md** | Setup script and portability | `maps-init.sh`, `.mcp.json` merge, idempotent, Node.js + Claude Code prerequisites |
 | **09-maps-lite.md** | Lightweight `/maps` variant for small changes/bug fixes | Merged change brief, section-writing delegation contract, `question`-task confirmation gate, escalation, conditional Step 20 |
@@ -236,7 +236,7 @@ Forward-only. Never reopen completed tasks — create new ones instead.
 
 - **MCP Server**: TypeScript, Node.js, `@modelcontextprotocol/sdk`, `better-sqlite3`
 - **Database**: SQLite (per-project, at `.maps/maps.db`)
-- **Compressor**: Rule-based TypeScript (4-pass semantic densification)
+- **Compressor**: Rule-based TypeScript (3-pass semantic densification)
 - **Agent personas**: Markdown files
 - **Orchestrator**: Markdown file (Claude Code custom command)
 - **User interface**: Claude Code CLI

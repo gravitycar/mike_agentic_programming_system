@@ -60,7 +60,7 @@ Tools that perform the same verb on the same resource (e.g., "list tasks with di
 - `config_get` — retrieve a config value by key
 
 #### Compression (see [06-compressor.md](06-compressor.md))
-- `compress` — accept markdown text and return a semantically densified version with reduced token count. Used by Claude when retrieving documents as working context.
+- `compress` — accept a `file_path`, read that markdown document from disk, and return a semantically densified version with reduced token count. Used by Claude when retrieving documents as working context. It takes a path rather than text so the caller never has to read the uncompressed document into context first. Relative paths resolve against the project root. The file on disk is never modified.
 
 #### Convenience
 - `next_task` — find the next unblocked task, optionally filtered by agent role

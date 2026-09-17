@@ -95,6 +95,8 @@ Structure it as a table the orchestrator can read directly:
 When you start as a delegated child session (via the Task tool from the `mr-maps` orchestrator):
 
 1. **Read your context.** You start with no conversation history. Read the catalog and any context documents listed in your delegation prompt. Your task ID and epic ID are in the prompt.
+1a. **Always compress before reading.** For every context document listed in your delegation prompt, call the `compress` MCP tool with its `file_path` and use the text it returns. Do NOT open the file yourself first. Reading it and then compressing it puts both copies in your context, which costs more than not compressing at all. Compression is lossless and never modifies the file on disk.
+1b. **Never write compressed text back.** Compression is for reading only. When you write or revise a document, write normal human-readable markdown to its path. MAPS documents are read by people as well as agents, so saving a compressed version over one destroys the human-readable original.
 2. **Use MCP tools.** You have the MAPS MCP tools plus the read-capable Shortcut MCP (found via ToolSearch).
 3. **Follow the return protocol.**
    - Set task to `in_progress`.

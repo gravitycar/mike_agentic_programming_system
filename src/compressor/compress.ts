@@ -2,14 +2,19 @@
  * Semantic densification compressor
  * Per spec 06-compressor.md
  *
- * 4-pass rule-based compression:
+ * 3-pass rule-based compression:
  * 1. Meaning pass — remove decorative content
  * 2. Structure pass — flatten formatting
- * 3. Language pass — shorten prose
- * 4. Token pass — symbolic optimization
+ * 3. Token pass — collapse whitespace
  *
- * Target: 30-50% token reduction
- * Code blocks are excluded from compression
+ * Every pass is lossless. Compression is applied to every document the agents
+ * read, so a rule that is wrong 1% of the time is wrong on every epic. Rules
+ * that rewrite prose were removed: they changed what documents said (deleting
+ * "additionally" from a MUST NOT, turning the noun "causes" into an arrow) and
+ * together saved under 0.03% of a real specification.
+ *
+ * Code blocks are excluded from compression.
+ * List structure and snake_case identifiers are preserved.
  */
 
 interface CodeBlock {
@@ -21,7 +26,6 @@ interface CodeBlock {
 function extractCodeBlocks(text: string): { blocks: CodeBlock[]; textWithoutCode: string } {
   const blocks: CodeBlock[] = [];
   const fencedRegex = /```[\s\S]*?```/g;
-  const indentedRegex = /(?:^|\n)((?:[ ]{4}|\t).*(?:\n(?:[ ]{4}|\t).*)*)/g;
 
   let match;
   let textWithPlaceholders = text;
@@ -60,22 +64,9 @@ function meaningPass(text: string): string {
   // Remove decorative emojis (but preserve text)
   result = result.replace(/[👍👎✅❌🔥💡⚠️🎯📌🚀✨💪🙏👀💯🔴🟢🟡]/g, '');
 
-  // Remove reader guidance phrases
-  const guidancePhrases = [
-    /In this section,?\s*/gi,
-    /The following example shows\s*/gi,
-    /As mentioned above,?\s*/gi,
-    /It is important to note that\s*/gi,
-    /Please note that\s*/gi,
-    /Keep in mind that\s*/gi,
-    /As you can see,?\s*/gi,
-    /For example,?\s*/gi,
-    /Note that\s*/gi,
-  ];
-
-  for (const phrase of guidancePhrases) {
-    result = result.replace(phrase, '');
-  }
+  // Reader guidance phrases ("For example,", "Note that", "As you can see,")
+  // are NOT removed. "For example," marks what follows as an illustration
+  // rather than a requirement, and deleting it changes what a spec demands.
 
   // Remove horizontal rules
   result = result.replace(/^-{3,}$/gm, '');
@@ -94,65 +85,26 @@ function meaningPass(text: string): string {
 function structurePass(text: string): string {
   let result = text;
 
-  // Remove markdown emphasis (bold, italic) — content carries meaning
+  // Remove markdown emphasis (bold, italic) — content carries meaning.
+  // Underscore-italic (_text_) is deliberately NOT stripped: it eats the
+  // underscores inside snake_case identifiers (app_metadata, AUTH_LOGGED_IN),
+  // which silently corrupts every identifier a specification names.
   result = result.replace(/\*\*([^*]+)\*\*/g, '$1'); // **bold**
   result = result.replace(/\*([^*]+)\*/g, '$1'); // *italic*
-  result = result.replace(/__([^_]+)__/g, '$1'); // __bold__
-  result = result.replace(/_([^_]+)_/g, '$1'); // _italic_
-
-  // Collapse simple bullet lists into inline comma-separated lists
-  // Match bullet lists (-, *, +) that are on consecutive lines
-  result = result.replace(/(?:^|\n)((?:[-*+] [^\n]+\n)+)/gm, (match) => {
-    const items = match
-      .trim()
-      .split('\n')
-      .map((line) => line.replace(/^[-*+]\s+/, '').trim());
-    return items.join(', ') + '\n';
-  });
 
   return result;
 }
 
 /**
- * Pass 3: Language pass — shorten prose
- */
-function languagePass(text: string): string {
-  let result = text;
-
-  // Convert verbose sentences to dense assertions
-  const verbosePatterns: [RegExp, string][] = [
-    [/The system is designed to\s+/gi, 'System: '],
-    [/This (component|module|function) is responsible for\s+/gi, '$1: '],
-    [/In order to\s+/gi, 'To '],
-    [/It should be noted that\s+/gi, ''],
-    [/It is worth mentioning that\s+/gi, ''],
-  ];
-
-  for (const [pattern, replacement] of verbosePatterns) {
-    result = result.replace(pattern, replacement);
-  }
-
-  // Remove transitional phrases
-  result = result.replace(/\b(however|furthermore|moreover|additionally),?\s*/gi, '');
-
-  return result;
-}
-
-/**
- * Pass 4: Token pass — symbolic optimization
+ * Pass 3: Token pass — collapse whitespace
+ *
+ * Word-to-symbol substitution ("causes" → →, "less than" → <) was removed. The
+ * rules matched nouns as well as verbs, so "distinguish four causes:" became
+ * "distinguish four →:".
  */
 function tokenPass(text: string): string {
   let result = text;
 
-  // Replace common words with symbols where LLMs understand well
-  result = result.replace(/\bleads to\b/gi, '→');
-  result = result.replace(/\bresults in\b/gi, '→');
-  result = result.replace(/\bcauses\b/gi, '→');
-  result = result.replace(/\bequals\b/gi, '=');
-  result = result.replace(/\bgreater than\b/gi, '>');
-  result = result.replace(/\bless than\b/gi, '<');
-
-  // Collapse remaining unnecessary whitespace
   result = result.replace(/ {2,}/g, ' '); // Multiple spaces to single
   result = result.replace(/\t/g, ' '); // Tabs to space
 
@@ -166,20 +118,21 @@ export function compress(text: string): string {
   // Extract code blocks
   const { blocks, textWithoutCode } = extractCodeBlocks(text);
 
-  // Apply 4 passes to non-code content
+  // Apply 3 passes to non-code content
   let compressed = textWithoutCode;
   compressed = meaningPass(compressed);
   compressed = structurePass(compressed);
-  compressed = languagePass(compressed);
   compressed = tokenPass(compressed);
 
   // Restore code blocks
   compressed = restoreCodeBlocks(compressed, blocks);
 
-  // Final cleanup: remove leading/trailing whitespace per line
+  // Final cleanup: remove trailing whitespace per line. Leading whitespace is
+  // kept — it is what makes a nested list item nested, and trimming it promoted
+  // every sub-item to a sibling of its parent.
   compressed = compressed
     .split('\n')
-    .map((line) => line.trim())
+    .map((line) => line.trimEnd())
     .join('\n');
 
   // Remove excessive blank lines again (may have been introduced)

@@ -275,7 +275,11 @@ When gathering artifacts for delegation, use this lookup to find the model and t
 | 20b | Critic (acceptance triage) | sonnet | `specification`, `test_results`, `implementation_plan` | Same as 17a, plus acceptance evidence |
 | 6-7, 9-10, 14, 20d | Recording child (human review) | sonnet | answers collected inline | Writes `task_update` calls only, no reasoning work |
 
-**Compression**: Before including large documents in the delegation prompt's file list, consider whether the child should compress them. Include this note in the delegation prompt when relevant: "Use the `compress` MCP tool on large documents before using them as working context."
+**Compression**: Every delegation prompt tells the child to compress every context document. Include this block verbatim:
+
+> For each context document below, call the `compress` MCP tool with its `file_path` and use the text it returns. Do NOT read the file yourself first. Reading it and then compressing it puts both copies in your context, which costs more than not compressing. Compression is for reading only: when you write or revise a document, write normal human-readable markdown to its path. Never save compressed text over a document.
+
+There is no size threshold. A child cannot judge a document's size without reading it, which is the cost compression exists to avoid.
 
 ## Output Paths (document-producing steps)
 

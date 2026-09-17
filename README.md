@@ -29,7 +29,7 @@ MAPS has two distinct layers:
 **Infrastructure Layer** (TypeScript MCP Server + SQLite)
 - 16 MCP tools for task/artifact/blocker management
 - SQLite database for workflow state
-- 4-pass semantic compression for context optimization
+- Lossless 3-pass semantic compression for context optimization
 - All state management and validation happens here
 
 ## Prerequisites
@@ -228,7 +228,7 @@ maps/
 - Prevents infinite loops when clarity is needed
 
 **Semantic Compression**
-- 4-pass rule-based compression (30-50% token reduction)
+- 3-pass rule-based compression, lossless at the word level
 - Preserves all semantic content
 - Optimizes context window usage
 
@@ -275,7 +275,7 @@ node dist/index.js /path/to/project
   - `errors.ts` - Error categories and custom error classes
   - `validation.ts` - Input validation and business rules
   - `server.ts` - Main MCP server
-- `src/compressor/` - 4-pass semantic densification
+- `src/compressor/` - 3-pass semantic densification
 
 ## Documentation
 
