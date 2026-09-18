@@ -7,7 +7,7 @@ The Architect agent designs the high-level structure of the project. It writes s
 
 ## Workflow Steps
 - **Step 4**: Write specification document from research summaries and user input, following specification guidelines
-- **Step 11**: Build implementation catalog — a concise list of discrete items to build, no code examples, max ~3 files each
+- **Step 11**: Build implementation catalog — a concise list of discrete items to build, no code examples, no file paths, each item within the sizing ceiling and floor in `docs/guidelines/CATALOG_GUIDELINES.md`
 - **Step 12 (context)**: The research summaries and specification produced by the Architect are available to the Developer via `artifact_list` when writing implementation plans
 
 ## Inputs
@@ -24,7 +24,7 @@ The Architect agent designs the high-level structure of the project. It writes s
 
 ## Success Criteria
 - **Specification**: Must include a clear problem statement, acceptance criteria, and follow the specification guidelines. Completeness is validated by the Critic in step 5, not self-assessed by the Architect.
-- **Implementation catalog**: Every aspect of the spec — including every acceptance criterion — is covered by a catalog item. Cross-cutting criteria (tagged `**Scope:** cross-cutting`) that no feature item owns get dedicated verification catalog items. Each item is discrete (max ~3 files), and items have their blocking dependencies noted.
+- **Implementation catalog**: Every aspect of the spec — including every acceptance criterion — is covered by a catalog item. Cross-cutting criteria (tagged `**Scope:** cross-cutting`) that no feature item owns get dedicated verification catalog items. Each item is discrete and within the sizing ceiling and floor, and items have their blocking dependencies noted.
 - Steps 4 and 11 are single-pass tasks. Iteration happens through the review loop (Critic → user → Architect revises), managed by the `/maps` command.
 
 ## Behavioral Guidelines
@@ -35,7 +35,7 @@ The Architect agent designs the high-level structure of the project. It writes s
 ## Open Questions
 1. ~~What are the specific inputs and outputs for each of this agent's tasks?~~ **Resolved** — Already defined in this spec. Inputs: problem statement, codebase summary, research summary, specification guidelines, user feedback. Outputs: specification artifact and implementation catalog artifact.
 2. ~~What are the success criteria for the specification? How do we know it's complete enough for review?~~ **Resolved** — The spec must include a clear problem statement, acceptance criteria, and follow the specification guidelines. Completeness is validated by the Critic in step 5, not self-assessed by the Architect.
-3. ~~What are the success criteria for the implementation catalog?~~ **Resolved** — Every aspect of the spec is covered by a catalog item, each item is discrete (max ~3 files), and items have their blocking dependencies noted.
+3. ~~What are the success criteria for the implementation catalog?~~ **Resolved** — Every aspect of the spec is covered by a catalog item, each item is discrete, and items have their blocking dependencies noted. *(The original answer set the size at "max ~3 files". Superseded: the ceiling is now under 30 logical production files and under 500 logical lines, with a floor of about 3 files or 50 lines, in `docs/guidelines/CATALOG_GUIDELINES.md`.)*
 4. ~~What are reasonable hard limits for this agent's iterations?~~ **Resolved** — Not applicable. Steps 4 and 11 are single-pass tasks. The Architect writes the spec/catalog and is done. Iteration happens through the review loop (Critic → user → Architect revises), which is managed by the `/maps` command with its own hard limits.
 5. ~~How does the Architect determine when a specification is too large and needs to be decomposed into multiple sub-specs (10K token limit)?~~ **Resolved** — If a spec exceeds the 10K token guideline, the Architect decomposes it into sub-sections stored as separate artifacts. The persona instructions guide this.
 6. ~~How does the Architect select relevant context to pass to the Developer for implementation plan writing?~~ **Resolved** — With the Claude Code persona model, there is no manual context selection. Claude has access to all artifacts via `artifact_list` and the file system. The `/maps` command instructions tell Claude which documents are relevant for step 12.

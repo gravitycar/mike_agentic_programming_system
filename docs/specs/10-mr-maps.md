@@ -9,7 +9,7 @@
 
 ## Context
 `mr-maps` sits in the same two-layer model established by [05-orchestrator.md](05-orchestrator.md):
-- The **workflow** below is the MetaRouter analog of [07-workflow.md](07-workflow.md) — the same 20 steps, with a new sub-step (11b) and a restructured build/test phase.
+- The **workflow** below is the MetaRouter analog of [07-workflow.md](07-workflow.md) — the same 20 steps, with a new sub-step (11c) and a restructured build/test phase.
 - The **orchestrator** (the `mr-maps` command + Claude Code) executes those steps.
 - The **agent personas** ([04-agents.md](04-agents.md)) are reused **unchanged**; every MetaRouter-specific behavior is delivered through the delegation contract, exactly as stock `/maps` already overrides persona default paths. One **new** persona — the Story Reconciler — is added; the existing eight are not edited.
 
@@ -41,8 +41,8 @@ The 20-step workflow of [07-workflow.md](07-workflow.md) is preserved. The delta
 - **Step 1 (User + Orchestrator) — capture the Shortcut epic.** The user describes the problem (the epic). The orchestrator obtains the epic's Shortcut number and records it: `config_set key="shortcut_epic_number" value="<n>"`. If a **write-capable** Shortcut MCP is available and the epic does not yet exist, the orchestrator creates it; otherwise the user creates the epic in Shortcut and supplies the number. The epic number determines the document directory (`docs/plans/sc-<n>/`).
 - **Steps 2–10 — unchanged in behavior, changed in storage.** Research goes to `.maps/` (internal). The specification is authored at step 4 and stored at `docs/plans/sc-<n>/<spec-name>.md`. Critical reviews stay in `.maps/`. **Spec sign-off (step 10):** the spec is approved and written to disk but not yet committed, because epics have no branch and no story branch exists yet; the commit is deferred to the build loop (see [Committing epic-level documents](#committing-epic-level-documents)).
 - **Steps 10a–d / 14a–d (LLM Security Auditor) — unchanged, conditional.** MetaRouter repos are generally not LLM-integrated, so these usually skip, exactly as in stock `/maps`.
-- **Step 11 (Architect) — build catalog, sized to the story budget.** Each catalog item is sized as one Shortcut story (see [Story Sizing](#story-sizing-guideline)), overriding stock's "~3 files per item."
-- **Step 11b (Story Reconciler) — NEW.** Reconcile catalog items against existing Shortcut stories under the epic; obtain a story number for every item. See [Shortcut Integration](#shortcut-integration-and-the-story-reconciler).
+- **Step 11 (Architect) — build catalog, sized to the story budget.** Each catalog item is sized as one Shortcut story (see [Story Sizing](#story-sizing-guideline)), using the base ceiling from `CATALOG_GUIDELINES.md`.
+- **Step 11c (Story Reconciler) — NEW.** Runs after the base's catalog review (11a) and catalog approval (11b), which `mr-maps` inherits unchanged. Reconcile catalog items against existing Shortcut stories under the epic; obtain a story number for every item. Nothing is filed in Shortcut from an unreviewed catalog. See [Shortcut Integration](#shortcut-integration-and-the-story-reconciler).
 - **Step 12 (Developer) — write plans, one per story.** Each plan is stored at `docs/plans/sc-<n>/sc-<story#>_<slug>.md` and carries a `## Branch` section (base branch, branch name, type, slug). See [Git Branch Strategy](#git-branch-strategy).
 - **Steps 13–14 — unchanged.** Critic review #3 + user resolution. Story-split proposals from sizing surface here for approval.
 - **Steps 15–19 — RESTRUCTURED into the per-story build loop.** Instead of "build everything, then unit-test, then integration-test," each story is built, tested, and committed on its own branch. See [Git Branch Strategy](#git-branch-strategy) and [Testing Model](#testing-model).
@@ -63,10 +63,30 @@ Mechanics (no persona change, no server change):
 - The `mr-maps` command supplies **explicit input and output paths in every delegation contract**, so no persona ever falls back to its stock `.maps/docs/<epic-slug>/...` default. Relying on the persona default is prohibited in `mr-maps`.
 
 ## Shortcut Integration and the Story Reconciler
-Both the document directory (`sc-<epic#>`) and every branch name (`sc-<story#>`) need real Shortcut numbers. The epic number is captured at step 1. Story numbers are assigned at **step 11b**, after the catalog is approved (never at first draft — so cut/merged items don't leave orphaned stories).
+Both the document directory (`sc-<epic#>`) and every branch name (`sc-<story#>`) need real Shortcut numbers. The epic number is captured at step 1. Story numbers are assigned at **step 11c**, after the catalog is approved (never at first draft — so cut/merged items don't leave orphaned stories).
 
 ### Deterministic linkage
 A nullable **`shortcut_story_id`** column is added to the `tasks` table. It is the authoritative catalog-item ↔ story link, anchored on the `plan` task (which is the database's representation of a catalog item — items are not rows until plan tasks are created). "This item still needs a story" is then a deterministic query: *plan tasks with `shortcut_story_id IS NULL`.* The column is additive and backward-compatible; stock `/maps` leaves it NULL and never reads it. No story-side key (external ID / label) is written in v1.
+
+### Story text ownership
+The **Story Reconciler owns every Shortcut story's title and description**, written at step 11c. The catalog carries neither.
+
+This was ambiguous in practice. The Reconciler's success criteria already required a description, but its output format had no place to put one, so the Architect filled the space and story text grew to **31.8% of the catalog's item bytes** across a real epic. The text was then unused, because story creation reads the Reconciler's proposal rather than the catalog.
+
+The resolution has three parts:
+- The Architect is told, in the step-11 delegation contract, not to write story text into the catalog.
+- The Reconciler's output gains a `## Stories to create` section, one block per needs-creation item, holding the title, the branch type, and the description. Nothing reviews that text before it reaches Shortcut, so it is written as final rather than as a suggestion. The Reconciler's *classifications* remain proposals, because the 11c.2 gate can reject them.
+- The **specification is added to the Reconciler's inputs**. A one-line catalog Purpose is not enough to write a description from. The cost is one spec read on `sonnet`, once per epic.
+
+The description must **stand alone and must not link to the specification**. The reader is a person in the story tracker who may have no access to the spec at all, so a description that defers to it is useless to them.
+
+MAPS never writes a stand-alone story. Every story is one slice of an epic, so each description makes three moves as one paragraph:
+
+1. **The epic** — one sentence naming what the epic is building, compressed from the spec's Executive Summary. It is **identical, word for word, in every story of the epic**, because it is the orienting line and paraphrases of one epic read worse than one repeated sentence.
+2. **Why this story exists, in terms of the epic** — one to four sentences. What is missing or wrong today, *and* what the epic needs from it. "The column is not readable" is a fact; "the column is not readable and the new UI needs that data" is a reason.
+3. **What this story does** — one to four sentences, at the altitude of behaviour rather than files.
+
+Without move 1, a reader seeing one story out of fifteen has no way to tell why a configuration change matters. Move 2 is what connects the slice to the whole, and stating the problem in isolation loses it.
 
 ### The Story Reconciler persona (new, advisory)
 Following MAPS's rule that personas *reason* and the orchestrator *does side effects* (as the Reviser never touches git), the Story Reconciler is **advisory** — it reads and proposes; the command executes.
@@ -74,7 +94,7 @@ Following MAPS's rule that personas *reason* and the orchestrator *does side eff
 - **Inputs:** the approved implementation catalog (from `.maps/`) + the current stories under the Shortcut epic, read via the **read-capable** Shortcut MCP (always available).
 - **Output:** one classification per catalog item —
   - **matched** → an existing `sc-X` (with rationale),
-  - **needs-creation** → no existing story; proposes a canonical title, description, and branch `type`,
+  - **needs-creation** → no existing story; writes the canonical title, description, and branch `type`,
   - plus a list of **extra** stories that match no catalog item.
 - It never creates, edits, or deletes anything in Shortcut.
 
@@ -159,28 +179,30 @@ The Cypress stacking rule guarantees that any genuinely cross-story spec already
 ## Story Sizing Guideline
 The 30-file / 500-line budget is a **soft** guideline enforced at a **single checkpoint** — catalog/plan sizing (step 11), Architect-owned. There is no commit-time gate.
 
+**The numbers now live in the base**, in `docs/guidelines/CATALOG_GUIDELINES.md`, and apply to every MAPS epic rather than only to `mr-maps`. Evidence from two real epics settled it: no item in either came within a third of the ceiling, and because each implementation plan carries roughly 19KB of fixed overhead regardless of item size, a lower ceiling would raise the total volume of planning documents while building the same system. The base also adds a **floor** of about 3 files or 50 logical lines, below which the plan costs more to write than the code. `mr-maps` no longer overrides the base sizing; it states what the ceiling buys here.
+
 - When a catalog item/story would exceed the budget, the **Architect proposes splitting it into two or more stories** to get under it. Because the catalog and plans pass through user review (steps 13–14), split proposals are approved there — soft by construction.
 - **What counts:** fewer than **30 logical/production files** and fewer than **500 logical lines**. The counts **exclude** comments, blank lines, markdown, boilerplate, generated files, and **all test files (unit + Cypress)** — verbose specs and tests never force a split; only real production code does.
 - Because this is a **plan-time estimate** (the code does not yet exist), the Architect *estimates* logical files/lines while sizing — no line-counting tooling and no "how does a tool classify boilerplate" problem. Delivered via the step-11 delegation contract — no persona edit.
-- **Granularity shift:** in `mr-maps`, one catalog item = one story sized to this budget, overriding stock MAPS's "~3 files per catalog item" default. This is what makes the sizing check meaningful and what lets a budget-sized slice often hold UI + backend together (Cypress runnable within one story), splitting into separate backend/UI stories only when the slice would blow the budget.
+- **What the ceiling buys here:** one catalog item = one story = one branch = one MR, reviewable in one sitting. A budget-sized slice can also hold UI + backend together, which is what lets a Cypress spec run within one story rather than forcing a stack. Split into separate backend/UI stories only when the slice would exceed the ceiling.
 
 ## Model Routing
 Base routing applies unchanged. See [05-orchestrator.md](05-orchestrator.md#model-routing). Two `mr-maps` steps are not in the base table:
 
 | Step | Agent | Model | Why |
 |------|-------|-------|-----|
-| 11b | Story Reconciler | `sonnet` | It matches catalog items to existing stories. Classification, not design. |
+| 11c | Story Reconciler | `sonnet` | It matches catalog items to existing stories. Classification, not design. |
 | Per-story build loop | Developer (build), Test Writer (unit + Cypress), Critic (triage), Reviser | `sonnet` | The loop replaces base steps 15-19, which already route to `sonnet`. |
 
 ## Requirements
 - Implemented as a Claude Code custom command (`.claude/commands/mr-maps.md`); Claude Code is the orchestrator, as in `/maps`. Stock `/maps` and `/maps-lite` are not modified.
 - Adds exactly one new persona, `.claude/agents/story-reconciler.md` (advisory: proposes reconciliation; the command executes side effects). The eight existing personas are unchanged; all MetaRouter behavior reaches them through the delegation contract.
 - Adds one nullable `shortcut_story_id` column to `tasks` (additive, backward-compatible); no other schema change and no new MCP tools.
-- Captures the Shortcut epic number at step 1 (`config_set shortcut_epic_number`); assigns story numbers at step 11b via the Story Reconciler; records each on its plan task's `shortcut_story_id`.
+- Captures the Shortcut epic number at step 1 (`config_set shortcut_epic_number`); assigns story numbers at step 11c via the Story Reconciler; records each on its plan task's `shortcut_story_id`.
 - Detects whether a write-capable Shortcut MCP is present; creates epic/stories automatically when it is, and falls back to a manual-creation gate + re-read + link when only a read-only MCP is available. Human confirmation precedes creation in both modes.
 - Stores committed docs under `docs/plans/sc-<epic#>/` (flat: `<spec-name>.md`, `sc-<story#>_<slug>.md`); keeps research, catalog, reviews, and test logs in gitignored `.maps/`. Every delegation carries explicit input/output paths.
 - Builds via the per-story loop: one branch per story (`<user>/<type>/sc-<story#>/<short-desc>`, ≤40 chars; type proposed by Developer, else asked); independent stories off `master`, dependents stacked; unit tests colocated; Cypress gate (targeted, UI-driven) passing before commit; local commits only.
-- Enforces the 30-file / 500-logical-line soft budget once, at catalog sizing, with Architect-proposed story splits; logical counts exclude comments, markdown, boilerplate, generated files, and all test files.
+- Applies the base 30-file / 500-logical-line ceiling once, at catalog sizing, with Architect-proposed story splits; logical counts exclude comments, markdown, boilerplate, generated files, and all test files (Cypress included). The numbers come from `CATALOG_GUIDELINES.md`, not from this overlay.
 - Human review steps pause the workflow until the user responds, in the conversation.
 - Each delegation is routed to a model by workflow step, via the Task tool's `model` parameter; the Story Reconciler and the per-story build loop use `sonnet`.
 - Workflow state persists in the task tree; `mr-maps` resumes via `next_task` and follows the same crash-recovery rules as `/maps`.
@@ -192,11 +214,11 @@ Base routing applies unchanged. See [05-orchestrator.md](05-orchestrator.md#mode
 - [04-agents.md](04-agents.md) and 04a–04g — the reused personas; plus the new Story Reconciler persona.
 - [05-orchestrator.md](05-orchestrator.md) — the orchestration model and delegation-contract mechanism that carries MetaRouter behavior.
 - [07-workflow.md](07-workflow.md) — the full workflow this one adapts (Step 20 acceptance verification inherited).
-- External: the **Shortcut MCP server(s)** — a read-capable server is required at step 11b; a write-capable server is optional (enables auto-creation of epic/stories).
+- External: the **Shortcut MCP server(s)** — a read-capable server is required at step 11c; a write-capable server is optional (enables auto-creation of epic/stories).
 
 ## Open Questions
 1. ~~Where do MetaRouter documents live, and what stays internal?~~ **Resolved** — committed spec + story plans under flat `docs/plans/sc-<epic#>/`; research/catalog/reviews/test-logs in gitignored `.maps/`.
-2. ~~How are Shortcut numbers captured and linked, given empty / partial / full epics and a possibly read-only MCP?~~ **Resolved** — epic number at step 1; story numbers at step 11b via the advisory Story Reconciler (classify matched / needs-creation / extra); deterministic link via `shortcut_story_id` on the plan task; human-gated creation with a read-only manual-creation fallback that re-reads and links.
+2. ~~How are Shortcut numbers captured and linked, given empty / partial / full epics and a possibly read-only MCP?~~ **Resolved** — epic number at step 1; story numbers at step 11c via the advisory Story Reconciler (classify matched / needs-creation / extra); deterministic link via `shortcut_story_id` on the plan task; human-gated creation with a read-only manual-creation fallback that re-reads and links.
 3. ~~How does one-story-one-branch map onto MAPS?~~ **Resolved** — one catalog item = one plan = one `implement` task = one branch; deterministic branch naming with a Developer-proposed `type`; independent stories off `master`, dependents stacked; per-story build/test/commit loop; local commits only.
 4. ~~How are MetaRouter repos tested, and how does that shape the workflow?~~ **Resolved** — two tiers only (validated against `ion`); colocated unit tests + UI-driven Cypress on the last-enabling branch; targeted in-session Cypress run gating every commit, full suite in CI; coverage vigilance for UI-validatable behavior. `mr-maps` discovers the specific repo's test setup at runtime.
 5. ~~How is the 30-file / 500-line guideline enforced without over-splitting on test volume?~~ **Resolved** — a single soft checkpoint at catalog sizing with Architect-proposed splits; logical counts exclude comments/markdown/boilerplate/generated/test files; one catalog item = one budget-sized story.

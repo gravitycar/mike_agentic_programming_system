@@ -57,6 +57,7 @@ Loop iteration counts are derived from the task tree (count completed sibling ta
 ### Looping
 - Track loop iterations via the task tree (count completed sibling tasks of the same type)
 - Respect hard limits defined in the command instructions:
+  - **Catalog review (step 11a)**: **no loop**. One Critic pass, then the Architect revises, then the user reviews and approves at 11b. The user's review has no iteration limit, matching the spec review loop. The catalog is short and its findings are narrow, so a second automated round buys little.
   - **Critical review loop** (Critic finds questions → user answers → Critic re-reviews): **3 iterations**. If the Critic is still finding new questions after 3 rounds, something deeper is wrong and needs human intervention. **Cut directives are not questions and do not count toward this loop** — they pass to the Architect with the next revision and are applied without user arbitration.
   - **Test/fix loop** (test → triage → fix → retest): **5 iterations**. Code fixes can take a few attempts.
   - **Acceptance verification loop** (Step 20b: acceptance test → triage → fix → re-verify): **5 iterations**, same as the test/fix loop.
@@ -146,8 +147,8 @@ Assigning one model per persona would over-pay for triage or under-serve plan wr
 | Step | Agent | Model |
 |------|-------|-------|
 | 2, 3 | Researcher | `sonnet` |
-| 4, 11 | Architect | `opus` |
-| 5, 8, 13 | Critic (review) | `opus` |
+| 4, 11, 11a | Architect | `opus` |
+| 5, 8, 11a, 13 | Critic (review) | `opus` |
 | 10a-10c, 14a-14c | LLM Security Auditor | `opus` |
 | 12 | Developer (plans) | `opus` |
 | 15, 17c, 19c | Developer (build) | `sonnet` |
@@ -156,7 +157,7 @@ Assigning one model per persona would over-pay for triage or under-serve plan wr
 | 17b, 19b | Reviser | `sonnet` |
 | 17d, 19d | Test Writer (revise) | `sonnet` |
 | 20a, 20c | Verifier | `opus` |
-| 6-7, 9-10, 14, 20d | Recording child (human review) | `sonnet` |
+| 6-7, 9-10, 11b, 14, 20d | Recording child (human review) | `sonnet` |
 
 **Rationale for the `opus` assignments:**
 - **Architect, Critic (review), LLM Security Auditor.** These produce and audit the design. A weak specification or a missed review finding propagates into every downstream step.

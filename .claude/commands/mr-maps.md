@@ -8,10 +8,10 @@ Your base workflow is the stock `/maps` command at `.claude/commands/maps.md`. *
 
 This overlay does not repeat the base. It changes five areas:
 1. Document paths (where files live and what is committed).
-2. Shortcut epic and story numbers, plus a new Story Reconciler step (11b).
+2. Shortcut epic and story numbers, plus a new Story Reconciler step (11c). The base's catalog review (11a) and catalog approval (11b) are inherited unchanged and run before it.
 3. Git branches (one story, one branch) and a restructured per-story build loop.
 4. Testing (unit plus Cypress, no classic integration tier).
-5. Story sizing (the 30-file / 500-logical-line budget).
+5. Story sizing: the 30-file / 500-logical-line budget is the base ceiling, and this overlay says what it buys here.
 
 Everything else is inherited unchanged from the base: the session-delegation model, critical review loops (3 iterations), the conditional LLM security review, human-review recording via a child, crash recovery, loop tracking, and error handling. The reference spec is `docs/specs/10-mr-maps.md`.
 
@@ -63,7 +63,7 @@ Use this table in every Delegation Contract in place of the base "Output Paths" 
 | 4 | Architect (spec) | `docs/plans/sc-<epic#>/<spec-name>.md` | `specification` |
 | 4 | Architect (decision record) | `.maps/docs/<epic-slug>/specification/decisions.md` | `decision_record` |
 | 11 | Architect (catalog) | `.maps/docs/<epic-slug>/catalog/implementation-catalog.md` | `catalog` |
-| 11b | Story Reconciler | `.maps/docs/<epic-slug>/reconciliation/story-reconciliation.md` | `story_reconciliation` |
+| 11c | Story Reconciler | `.maps/docs/<epic-slug>/reconciliation/story-reconciliation.md` | `story_reconciliation` |
 | 12 | Developer (plan) | `docs/plans/sc-<epic#>/sc-<story#>_<slug>.md` | `implementation_plan` |
 
 Rules:
@@ -74,38 +74,39 @@ Rules:
 
 ---
 
-## Overlay 3 — Shortcut Story Numbers and the Story Reconciler (Step 11b, NEW)
+## Overlay 3 — Shortcut Story Numbers and the Story Reconciler (Step 11c, NEW)
 
 This step sits between catalog approval (step 11) and plan writing (step 12). Its job is to give every catalog item a real Shortcut story number, without creating duplicates.
 
-**Order of operations changes slightly from the base.** In the base, plan tasks are created right after the catalog and then written. In `mr-maps`:
-1. After the catalog is approved, create one `plan` task per catalog item (type `plan`, agent `developer`), with blockers from the catalog's "blocked by" notes, exactly as the base does. Do **not** write the plans yet, and do not create the Critic Review #3 task yet.
-2. Run Step 11b (below) to assign a `shortcut_story_id` to every plan task.
-3. Then proceed to step 12 (write plans) and create the Critic Review #3 task.
+**Order of operations changes slightly from the base.** The base runs 11a (Critic catalog review) and 11b (user approval) first, then creates plan tasks. `mr-maps` inherits both unchanged and inserts 11c after them:
+1. Run the base's 11a and 11b. **Nothing is filed in Shortcut from an unreviewed catalog.** Story numbers are assigned from an approved division of work, which is why 11c comes last.
+2. After the user approves the catalog at 11b, create one `plan` task per catalog item (type `plan`, agent `developer`), with blockers from the catalog's "blocked by" notes, exactly as the base does. Do **not** write the plans yet, and do not create the Critic Review #3 task yet.
+3. Run Step 11c (below) to assign a `shortcut_story_id` to every plan task.
+4. Then proceed to step 12 (write plans) and create the Critic Review #3 task.
 
-### 11b.1 — Delegate the Story Reconciler
+### 11c.1 — Delegate the Story Reconciler
 
 Create a reconciler task: `task_create parent_id=<epic-id> type="agent-review" name="Story reconciliation" description="Reconcile catalog items with existing Shortcut stories under the epic." agent="story_reconciler"`.
 
-Delegate it to a child session. In the delegation prompt, map the persona: for `agent="story_reconciler"`, read `.claude/agents/story-reconciler.md`. Give it the catalog artifact and the epic number. It reads existing stories via the read-capable Shortcut MCP, classifies each catalog item (matched / needs-creation / ambiguous), lists extra stories, and writes a `story_reconciliation` proposal.
+Delegate it to a child session. In the delegation prompt, map the persona: for `agent="story_reconciler"`, read `.claude/agents/story-reconciler.md`. Give it the catalog artifact, **the specification artifact**, and the epic number. It needs the spec because it writes every new story's description, and the catalog names each item in about a line. It reads existing stories via the read-capable Shortcut MCP, classifies each catalog item (matched / needs-creation / ambiguous), lists extra stories, and writes a `story_reconciliation` proposal.
 
-### 11b.2 — Human confirmation gate (not blind)
+### 11c.2 — Human confirmation gate (not blind)
 
 Read the proposal. Present it to the user:
 - Confirm the **matched** items.
 - Resolve each **ambiguous** item one at a time (match it to a story, or mark it needs-creation).
 - Surface **extra stories** and let the user decide (out of scope, or loop back to the Architect to extend the catalog). Never modify or delete a Shortcut story.
 
-### 11b.3 — Create missing stories, then link
+### 11c.3 — Create missing stories, then link
 
 For every item that is (or becomes) **needs-creation**:
-- If `shortcut_write` is `enabled`: create the story under the epic with the Reconciler's proposed title and description. Read back its number.
-- If `shortcut_write` is `disabled`: present the exact list of stories to create (proposed titles and descriptions). Create a gate task (type `human-review`, agent `user`) and wait. After the user says the stories exist, re-delegate the Story Reconciler to re-read Shortcut and re-match on the proposed titles. Confirm the new matches with the user.
+- If `shortcut_write` is `enabled`: create the story under the epic with the title and description from the Reconciler's `## Stories to create` section, as written. Read back its number.
+- If `shortcut_write` is `disabled`: present the exact list of stories to create, with the titles and descriptions from that same section. Create a gate task (type `human-review`, agent `user`) and wait. After the user says the stories exist, re-delegate the Story Reconciler to re-read Shortcut and re-match on those titles. Confirm the new matches with the user.
 
 Then **link deterministically**: for each plan task, set its story number:
 `task_update task_id=<plan-task-id> shortcut_story_id=<story#>`.
 
-"Which items still need a story" is always the deterministic query: plan tasks whose `shortcut_story_id` is null. Do not leave 11b until every plan task has a number.
+"Which items still need a story" is always the deterministic query: plan tasks whose `shortcut_story_id` is null. Do not leave 11c until every plan task has a number.
 
 ---
 
@@ -132,7 +133,7 @@ Delegate the Developer per plan task, as the base does at step 12, with two `mr-
 - **doc path** = `docs/plans/sc-<epic#>/sc-<story#>_<slug>.md` (Overlay 2).
 - **Emit a `## Branch` section** in the plan, holding: base branch, branch name, type, slug. Supply the Branch Plan row for this story so the section matches what the build loop will use. Ask the Developer to propose the `type` if the Branch Plan does not yet have one, then fold its choice back into the Branch Plan.
 
-Also inject the sizing note (Overlay 7) at step 11 so plans arrive within budget.
+Sizing is inherited from the base catalog guidelines; see Overlay 7 for what the ceiling buys here.
 
 ---
 
@@ -181,14 +182,14 @@ Selecting the affected existing specs is a **reasoning step** (specs do not stat
 
 ## Overlay 7 — Story Sizing (Step 11)
 
-The 30-file / 500-line budget is a **soft** guideline, checked once, at catalog sizing (step 11), by the Architect. There is no commit-time gate.
+**The sizing ceiling is inherited, not overridden.** The base catalog guidelines already set it at under 30 logical production files and under 500 logical lines, as a ceiling rather than a target, with a floor of about 3 files or 50 lines. Those are MetaRouter's review numbers and the base now carries them for every epic. Do not re-state them in the delegation contract.
 
-Inject this into the step-11 Delegation Contract for the Architect:
-- Size each catalog item as one Shortcut story. This **overrides** the stock "~3 files per catalog item" guidance.
-- Target fewer than **30 logical/production files** and fewer than **500 logical lines**. Exclude comments, blank lines, markdown, boilerplate, generated files, and all test files (unit and Cypress) from both counts.
-- These are plan-time estimates. When an item would exceed the budget, propose splitting it into two or more stories.
+Two things are specific to `mr-maps`:
 
-Split proposals surface in the normal catalog and plan review (steps 13–14) for the user to approve.
+- **One catalog item = one Shortcut story = one branch = one MR.** The ceiling is what makes a story reviewable in one sitting, which is the reason it exists here.
+- **A budget-sized slice can hold UI and backend together.** That is what lets a Cypress spec run inside one story instead of forcing a stack (Overlay 6). Split into separate backend and UI stories only when the slice would exceed the ceiling.
+
+"All test files" in the base exclusion includes Cypress specs. Split proposals surface in the normal catalog and plan review (steps 13–14) for the user to approve. There is no commit-time gate.
 
 ---
 
@@ -209,8 +210,8 @@ The Cypress stacking rule guarantees any cross-story spec already ran green on a
 The eight base personas and the Story Reconciler are not edited. All `mr-maps` behavior reaches them through the Delegation Contract you build for each task. Add these to the base contract as relevant:
 
 - **Every document task:** the `doc path` and `artifact_type` from Overlay 2. Never rely on a persona default path.
-- **Architect at step 11:** the sizing note from Overlay 7.
-- **Story Reconciler at step 11b:** map `agent="story_reconciler"` to `.claude/agents/story-reconciler.md`. Give it the catalog and the epic number.
+- **Architect at step 11:** the Cypress-slice point from Overlay 7. The sizing numbers come from the base, so do not repeat them. Also: **do NOT write Shortcut titles or descriptions into the catalog.** The Story Reconciler owns story text at 11c, and it has the spec to write it from. A catalog that carries story text duplicates work that has not happened yet and makes the catalog the longest document in the chain.
+- **Story Reconciler at step 11c:** map `agent="story_reconciler"` to `.claude/agents/story-reconciler.md`. Give it the catalog, the specification, and the epic number. It writes every new story's title and description. A description stands alone with no link to the spec, and makes three moves: one sentence naming the epic (identical in every story, compressed from the spec's Executive Summary), then why this story exists in terms of what the epic needs, then what it does.
 - **Developer at step 12:** emit a `## Branch` section from the Branch Plan row, and propose the `type` if missing.
 - **Developer at build (Overlay 5):** name the stack; build and test commands are runtime-discovered.
 - **Test Writer (unit):** colocate tests per stack; commands runtime-discovered.
@@ -222,7 +223,7 @@ Base model routing applies unchanged. Read the base `Model Routing` section and 
 
 | Step | Agent | Model | Why |
 |------|-------|-------|-----|
-| 11b | Story Reconciler | sonnet | Matches catalog items to existing stories. Classification, not design. |
+| 11c | Story Reconciler | sonnet | Matches catalog items to existing stories. Classification, not design. |
 | Overlay 5 loop | Developer (build), Test Writer (unit + Cypress), Critic (triage), Reviser | sonnet | Same work as base steps 15-19, which route to `sonnet`. |
 
 The Architect at step 11, the Critic at reviews #1 to #3, the LLM Security Auditor, the Developer at step 12, and the Verifier at Step 20 all stay on `opus`, as in the base.
@@ -245,7 +246,7 @@ You:
 2. Detect Shortcut write capability, record shortcut_write.
 3. Capture the Shortcut epic number, record shortcut_epic_number.
 4. Run the base setup (epic task, current_epic_id, project_init, LLM-security question, research chain).
-5. Follow the base workflow, applying the overlays above at steps 1, 11, 11b, 12, 15–20.
+5. Follow the base workflow, applying the overlays above at steps 1, 11, 11c, 12, 15–20.
 ```
 
 Now begin, based on the user's problem statement.

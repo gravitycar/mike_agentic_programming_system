@@ -42,6 +42,8 @@ You NEVER perform agent work yourself. You construct a delegation prompt, spawn 
 10c. **LLM Security Auditor** — LLM Security Review iteration #2 (only if 10b produced changes; 2-iteration hard limit)
 10d. **User** — Resolves remaining security questions (skips if 10c found no issues)
 11. **Architect** — Builds implementation catalog
+11a. **Critic** — Catalog Review (single pass, no iteration loop)
+11b. **User** — Reviews and approves the catalog
 12. **Developer** — Writes implementation plans
 13. **Critic** — Critical Review #3
 14. **User** — Resolves remaining questions
@@ -258,6 +260,8 @@ When gathering artifacts for delegation, use this lookup to find the model and t
 | 10a | LLM Security Auditor (spec) | opus | `specification`, resolved questions | Approved spec + codebase access for security audit |
 | 10c | LLM Security Auditor (spec #2) | opus | `specification`, `security_review`, resolved questions | Spec + prior security review + user responses |
 | 11 | Architect (catalog) | opus | `specification` | Approved spec |
+| 11a | Critic (catalog review) | opus | `catalog`, `specification` | Short document, highest-leverage review: every plan inherits this division of work |
+| 11a | Architect (catalog revision) | opus | `catalog`, `specification`, `review_summary` | Applies cut directives and answered questions |
 | 12 | Developer (plans) | opus | `specification`, `catalog`, `codebase_summary` | Spec, catalog item, research |
 | 13 | Critic (review #3) | opus | `specification`, all `implementation_plan`, previous questions, `decision_record` | Spec + all plans. The decision record shows what is already settled |
 | 14a | LLM Security Auditor (plans) | opus | `specification`, all `implementation_plan`, `security_review` (spec-level), resolved questions | Spec + all plans + prior security review |
@@ -385,9 +389,22 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 [Mark sign-off task as done, create catalog task — inline, only 2-3 MCP calls]
 ```
 
+## Catalog Review and Approval (Steps 11a, 11b)
+
+The catalog review is **a single Critic pass, not a loop.** The catalog is a short document and its findings are narrow, so a second automated round buys little.
+
+1. **11a — Critic reviews the catalog.** One delegation. It produces cut directives and, for anything that changes the shape of the epic, `question` tasks.
+2. **Architect revises.** It applies every cut directive without asking, as it does for the spec.
+3. **11b — the user reviews and approves the catalog.** This runs on **every epic**, whether or not the Critic raised anything. Present the catalog, the Critic's findings, and any open questions in one sitting. Collect answers, then delegate the recording to a child.
+4. **If the user asks for changes**, delegate the Architect again and return to step 3. This human loop has **no iteration limit**, matching the spec review loop: it ends when the user approves.
+
+The catalog is not committed to git, so approval is recorded by marking the task done. There is no sign-off commit as there is at step 10.
+
+Only after approval do you create the plan tasks. A catalog defect multiplies by the number of items, so nothing downstream should exist until the division of work is settled.
+
 ## Critical Review Loops
 
-Critical reviews (steps 5, 8, 13) have a **3-iteration hard limit**:
+Critical reviews (steps 5, 8, 13) have a **3-iteration hard limit**. The catalog review at 11a is **not** one of them and has no loop:
 
 **Loop structure:**
 1. Delegate Critic review to child session → child creates `question` tasks
@@ -560,7 +577,16 @@ As the workflow progresses, create tasks dynamically:
   - If `disabled`: Create catalog task directly, block it by the sign-off task only. No security review task created.
 
 **After Catalog (Step 11):**
-- Read the catalog artifact file
+- Create the Catalog Review task (type="catalog_review", agent="critic"), blocked by the catalog task
+- Do NOT create plan tasks yet. Plan tasks are created after the user approves the catalog at 11b
+
+**After Catalog Review (Step 11a):**
+- Read the Critic's review summary
+- Delegate the Architect to apply the `## Cut Directives` and revise the catalog for anything the Critic raised
+- Create the catalog approval task (type="human-review", agent="user"), blocked by the Architect's revision
+- If the Critic raised `question` tasks, they are resolved as part of 11b, in the same sitting as the approval
+
+**After Catalog Approval (Step 11b):**
 - For each catalog item: create `plan` task (type="plan", agent="developer")
 - Add blocker relationships based on catalog's "blocked by" notes
 - Create Critic Review #3 task, blocked by all plan tasks

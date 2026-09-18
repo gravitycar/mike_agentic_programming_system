@@ -63,7 +63,15 @@ Each implementation plan maps to exactly one item from the implementation catalo
 
 During step 15 (Build), the Developer follows the implementation plan faithfully. The Developer does not reinterpret the spec or make independent design decisions — it builds what the plan says. This is why the plan must be detailed enough to build from without ambiguity. The Critic validates plan completeness in step 13 before any code is written.
 
-### 5. Include Context, But Don't Duplicate the Spec
+### 5. Check the Spec's Constraints Before You Plan
+
+A specification's Explicit Constraints section says what must not be built or changed. A spec can carry thirty of them, and a constraint you miss is not caught until the plan is reviewed, by which point the plan is written around the wrong approach.
+
+Your catalog item's `Constraints` field names the ids that bind your item. Read each one **in the spec**, not from a copy. Then read the whole constraints section anyway, because the catalog names which constraints bind your item and can still miss one.
+
+Record the result in the plan's `Constraints observed` line: each id, and one clause on how the plan respects it. A constraint you can name and account for is a constraint you will not violate by accident.
+
+### 6. Include Context, But Don't Duplicate the Spec
 
 Every plan should orient the reader to the larger picture — which spec requirement it fulfills, how it fits within the broader architecture. But the plan should reference the spec, not restate it. A brief summary of the relevant spec context is sufficient. The full specification is always available via `artifact_list`.
 
@@ -82,7 +90,7 @@ Research Summaries → Specification → Implementation Catalog → Implementati
 |----------|---------|-----------------|
 | **Research summary** | "What exists in the codebase and domain?" | Survey-level |
 | **Specification** | "What should the system do and why?" | Requirements-level (no code) |
-| **Implementation catalog** | "What are the discrete buildable units?" | List-level (no code, max ~3 files each) |
+| **Implementation catalog** | "What are the discrete buildable units?" | List-level (no code, no file paths) |
 | **Implementation plan** | "How exactly do we build this unit?" | Code-level (file paths, signatures, examples) |
 
 The specification says "The system SHALL send email notifications within 60 seconds." The catalog says "Item 3: Email notification sender service (2 files)." The plan says "Create `EmailSender` class in `src/services/email-sender.ts` with `async send(notification: Notification): Promise<SendResult>` method that calls the Resend API, implements exponential backoff retry..."
@@ -113,6 +121,9 @@ role in the broader implementation. Reference the spec section, not restate it.]
 Catalog item: [Name from catalog]
 Specification section: [Which section(s) of the spec this fulfills]
 Acceptance criteria addressed: [AC-N — <name> references from the spec, e.g., AC-1 — Valid payload accepted, AC-2 — Report PDF well-formed]
+Constraints observed: [Each constraint id from the catalog item's Constraints field, and
+one clause each on how this plan respects it. Add any further constraint from the spec's
+Explicit Constraints section that binds this work.]
 
 ## Dependencies
 - **Blocked by**: [Other catalog items/plans that must be built first]
@@ -433,7 +444,7 @@ Code examples should use the project's actual language, framework, and libraries
 Every implementation plan should specify the unit tests that will verify the code. These test specs serve two purposes:
 
 1. **Guide the Developer** during build — knowing the tests helps write testable code
-2. **Guide the Test Writer** in step 16 — the test specs become the starting point for writing actual tests
+2. **Guide the Test Writer** — the test specs become the starting point when it writes the actual tests
 
 ### What to Specify
 
@@ -624,7 +635,7 @@ The Developer builds literally from the plan. If the code example uses the wrong
 ✅ Good: "Use the existing hashPassword() from src/utils/crypto.ts"
 ```
 
-The Researcher analyzed the codebase in step 2. The plan should leverage that research. Before specifying new code, check whether the functionality already exists. The plan should reference existing utilities, not reinvent them.
+The Researcher analyzed the codebase before the specification was written, and its summary is available via `artifact_list`. The plan should leverage that research. Before specifying new code, check whether the functionality already exists. The plan should reference existing utilities, not reinvent them.
 
 ### 6. Too Much or Too Little Detail
 
@@ -709,6 +720,8 @@ Use this checklist before finalizing any implementation plan:
 - [ ] Error handling is specified for each component
 - [ ] Dependencies on other plans are listed with specific details (what they provide)
 - [ ] New external dependencies (packages, libraries) are listed
+- [ ] Every constraint id from the catalog item appears in `Constraints observed`, with one clause on how the plan respects it
+- [ ] The spec's whole Explicit Constraints section was read, not only the ids the catalog named
 
 ### Buildability
 - [ ] A Developer could build working code from this plan without design decisions

@@ -10,6 +10,7 @@ Reviews run on two dimensions, not one. **Omission** is what the document fails 
 ## Workflow Steps
 - **Step 5**: Critical Review #1 — review the specification for omission and excess, add open questions for unaddressed concerns, add cut directives for excess
 - **Step 8**: Critical Review #2 — review the revised spec for new or still-unaddressed open questions
+- **Step 11a**: Catalog Review — review the implementation catalog on both dimensions, before any plan exists. A **single pass, not a loop**. This is the highest-leverage review in the workflow: a catalog defect multiplies by the number of items, and Review #3 only catches it after every plan has been written against the wrong division of work
 - **Step 13**: Critical Review #3 — review each implementation plan against the spec and previously resolved open questions, on both dimensions
 - **Step 17a**: Test failure triage — review failing tests against the spec, acceptance criteria, and code to determine cause
 - **Step 20b**: Acceptance Test failure triage — same triage applied to failed Acceptance Tests reported by the Verifier during acceptance verification
@@ -18,6 +19,7 @@ Reviews run on two dimensions, not one. **Omission** is what the document fails 
 - Specification (for reviews #1 and #2)
 - The decision record (for reviews #2 and #3), so a settled decision is not re-opened as a fresh question
 - Previously resolved open questions (for review #3)
+- The implementation catalog (for the catalog review at 11a)
 - Implementation plans (for review #3)
 - Failing test output, test code, implementation code, and relevant spec sections (for triage)
 

@@ -18,7 +18,9 @@ The workflow began as the 17 steps in the initial design notes and has since gro
 8. **Agent** — Critical Review #2. Review for new or still-unaddressed open questions.
 9. **User** — Address open questions.
 10. **User** — Sign off on spec. Approved spec is committed in git before implementation begins.
-11. **Agent** — Build implementation catalog. Discrete items, no code examples, max ~3 files each.
+11. **Agent** — Build implementation catalog. Discrete items, no code examples, no file paths, sized per `docs/guidelines/CATALOG_GUIDELINES.md`.
+11a. **Critic** — Catalog Review. A single pass, not a loop. Produces cut directives the Architect applies without asking, and `question` tasks for anything that changes the shape of the epic. The Architect then revises.
+11b. **User** — Reviews and approves the catalog. Runs on every epic, whether or not the Critic raised anything. No iteration limit: the user may send it back as often as they like. Plan tasks are created only after approval, because a catalog defect multiplies by the number of items.
 12. **Agent** — Create implementation plans for every catalog item. Code examples welcome. Include unit tests. Note blocking dependencies between plans.
 13. **Agent** — Critical Review #3. Review each implementation plan against previously answered open questions.
 14. **User** — Review and resolve remaining open questions.

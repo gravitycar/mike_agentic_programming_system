@@ -30,6 +30,8 @@ This document covers the general agent framework architecture. Each agent role h
 | 8 | Critical Review #2 | Critic |
 | 9-10 | Address questions + sign-off | `user` |
 | 11 | Build implementation catalog | Architect |
+| 11a | Catalog Review, then revision | Critic (single pass, no loop) → Architect |
+| 11b | Review and approve the catalog | `user` |
 | 12 | Write implementation plans | Developer (using research and spec via `artifact_list`) |
 | 13 | Critical Review #3 | Critic |
 | 14 | Resolve remaining questions | `user` |
