@@ -735,12 +735,12 @@ referencing a different record of the same type are excluded."
 ```
 ❌ Bad:
 "Restructured per D36. v2.0.0 sequenced the epic horizontally, which left one
-story as the last-enabling seam for seven test specs and roughly twenty
-criteria. D36 re-cuts the middle so a vertical skeleton lands early."
+story last-enabling for seven test specs and roughly twenty criteria. D36
+re-cuts the middle so a vertical skeleton lands early."
 
 ✅ Good:
-"The epic is cut vertically. A skeleton lands first and every later seam carries
-its own test spec (D36)."
+"The epic is cut vertically. A skeleton lands first and every later story
+carries its own test spec (D36)."
 ```
 
 **Lesson**: A specification states the design that survived. Record the design that did not survive in `decisions.md`, not in the requirement. An implementer who reads the rejected shape can build it by mistake.
@@ -759,6 +759,22 @@ its own test spec (D36)."
 ```
 
 **Lesson**: An open question earns room because somebody has to act on it. A closed one earns a line. Record the reasoning in `decisions.md`, with the decision it produced, not in the question it answered.
+
+### 13. Naming a Concept That Already Has a Name
+
+**Problem**: A spec invents new vocabulary for a unit of work `CATALOG_GUIDELINES.md` already names
+
+```
+❌ Bad:
+"Restructure into ten seams, each under the 30-file budget. Seam 4 is the
+last-enabling seam for the Cypress spec covering seams 1 through 3."
+
+✅ Good:
+"Restructure into ten stories, each under the 30-file budget. Story 4 is the
+last-enabling story for the Cypress spec covering stories 1 through 3."
+```
+
+**Lesson**: A spec cuts an epic into budget-sized units. That unit is a story, defined in `CATALOG_GUIDELINES.md` and expanded on in `/mr-maps`'s Story Sizing Guideline. Reuse that name. A new synonym, such as "seam", "slice" or "chunk", reads as a new concept to every later reader. "Seam" is worse. It already names something else in software engineering: a point where behavior changes without editing the code there (Feathers).
 
 ---
 

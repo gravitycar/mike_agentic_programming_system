@@ -161,11 +161,11 @@ The same item, written twice.
 ```
 ❌ Bad (31 lines, and it is a plan):
 
-### S1 — debug_data select permission
+### PERM-1 — debug_data select permission
 - **Branch type / slug**: feat / debug-data-perm
 - **Size**: ~1 production file, ~60 logical lines
 - **Blocked by**: — (root)
-- **Blocks**: S5 and transitively everything
+- **Blocks**: PERM-5 and transitively everything
 - **Spec**: §5 P1, §13 AC-1, §13 AC-19, §11
 
 **Description**:
@@ -204,11 +204,11 @@ The constraint is the one case worth looking at closely. The bad version copies 
 ```
 ✅ Good (6 lines):
 
-### S1 — Read permission for the audit detail column
+### PERM-1 — Read permission for the audit detail column
 - **Purpose**: expose the detail column the whole epic reads (spec §5 P1)
 - **Scope**: the API metadata permissions for the five reading roles
 - **Blocked by**: —
-- **Blocks**: S5
+- **Blocks**: PERM-5
 - **Constraints**: §11 DO-NOT-6
 - **Acceptance Criteria**: AC-1 — Column selectable by the five roles, AC-19 — No other permission changed
 ```
