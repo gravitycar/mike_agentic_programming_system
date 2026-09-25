@@ -121,7 +121,7 @@ The two sizes are independent. A 25-file item still gets about ten lines here, b
 - **Acceptance Criteria**: AC-2 — User created, AC-3 — Duplicate email rejected
 ```
 
-**Purpose** is one line. It says which spec requirement this item builds, in the reader's own terms. It is not a summary of the requirement.
+**Purpose** is one line. It says which spec requirement this item builds, in the reader's own terms, citing its `FR-N` id where the requirement has one. It is not a summary of the requirement.
 
 **Scope** names components, not files. "The three modal subcomponents" is scope. A list of paths with line estimates is a plan.
 
@@ -274,6 +274,7 @@ The impulse is right and the destination is wrong. That section belongs in `deci
 - [ ] No restatement of any requirement
 - [ ] No design rationale
 - [ ] Constraints are named by id, with no constraint text copied
+- [ ] Purpose cites the `FR-N` id it builds, where one exists
 - [ ] Scope names components, not files
 
 ### Size of the work

@@ -49,10 +49,10 @@ The specification defines acceptance criteria; the plan phase determines technic
 
 ```markdown
 ## Explicit Constraints (DO NOT)
-- Do NOT implement push notifications (Phase 2 feature)
-- Do NOT modify the existing User model
-- Do NOT create a separate microservice (embed in monolith)
-- Do NOT build custom email service (use Resend)
+- **DO-NOT-1**: Do NOT implement push notifications (Phase 2 feature)
+- **DO-NOT-2**: Do NOT modify the existing User model
+- **DO-NOT-3**: Do NOT create a separate microservice (embed in monolith)
+- **DO-NOT-4**: Do NOT build custom email service (use Resend)
 ```
 
 Constraints prevent scope creep and guide AI agents away from generic solutions that don't fit your architecture.
@@ -190,16 +190,17 @@ As a [user type], I want [capability], so that [benefit].
 ## Functional Requirements
 
 ### Core Capabilities
-[What the system must do - organized by capability area]
+[What the system must do - organized by capability area. Each requirement has a stable
+ID (FR-N), assigned once and never renumbered or reused.]
 
 #### [Capability Area 1]
-- Requirement 1
-- Requirement 2
+- **FR-1**: Requirement 1
+- **FR-2**: Requirement 2
 - Edge cases and exceptions
 
 #### [Capability Area 2]
-- Requirement 1
-- Requirement 2
+- **FR-3**: Requirement 1
+- **FR-4**: Requirement 2
 
 ### User Workflows
 [Key user journeys in Given/When/Then format]
@@ -235,9 +236,11 @@ As a [user type], I want [capability], so that [benefit].
 
 ⚠️ **Critical Section** - What NOT to build or change
 
-- Do NOT [constraint] — [one clause of reasoning]
-- Do NOT [constraint] — [one clause of reasoning]
-- Must NOT [constraint] — [one clause of reasoning]
+[Each constraint has a stable ID (DO-NOT-N), assigned once and never renumbered or reused.]
+
+- **DO-NOT-1**: Do NOT [constraint] — [one clause of reasoning]
+- **DO-NOT-2**: Do NOT [constraint] — [one clause of reasoning]
+- **DO-NOT-3**: Must NOT [constraint] — [one clause of reasoning]
 
 [One clause each. A constraint whose justification needs a paragraph is a design
 decision: state the constraint here and record the argument in decisions.md.]
@@ -295,17 +298,19 @@ POST /api/v2/notifications
 
 ✅ **A high-level verification map** — for each Acceptance Criterion, name how it will be demonstrated and by what method, so a reviewer can confirm at sign-off that every criterion is verifiable. Keep each entry to a few lines; the detailed procedure lives in the implementation plan that addresses the criterion — concrete test cases for MAPS-owned criteria, manual step-by-step procedures for User-owned criteria. Each entry traces back to one or more criteria above.
 
-1. **Valid payload accepted**
+**ID stability**: same convention as Acceptance Criteria — `AT-N` assigned once, never renumbered or reused.
+
+1. **AT-1 — Valid payload accepted**
    - **Verifies**: AC-1 — Valid payload accepted
    - **Method**: automated test
    - **Expected**: A POST with a valid payload returns 202 with a notification ID.
 
-2. **Notification latency within budget**
+2. **AT-2 — Notification latency within budget**
    - **Verifies**: AC-3 — Notification latency under 100ms
    - **Method**: benchmark
    - **Expected**: p95 latency for `/notifications` measures under 100ms in the harness.
 
-3. **Report PDF renders correctly**
+3. **AT-3 — Report PDF renders correctly**
    - **Verifies**: AC-2 — Report PDF well-formed
    - **Method**: manual visual inspection
    - **Expected**: The exported PDF shows the header, with no clipped text and correct spacing. (Detailed procedure lives in the plan addressing AC-2.)
@@ -336,9 +341,11 @@ POST /api/v2/notifications
 
 ## Risks and Mitigations
 
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| [Risk description] | High/Med/Low | High/Med/Low | [How to address] |
+[Each risk has a stable ID (RISK-N), assigned once and never renumbered or reused.]
+
+| ID | Risk | Probability | Impact | Mitigation |
+|----|------|-------------|--------|------------|
+| RISK-1 | [Risk description] | High/Med/Low | High/Med/Low | [How to address] |
 
 ## Out of Scope
 
@@ -354,13 +361,14 @@ implementer can build by mistake.]
 ## Open Questions
 
 [Unresolved decisions that need stakeholder input. An open question carries its options
-because somebody still has to choose between them.]
+because somebody still has to choose between them. Each question has a stable ID (OQ-N),
+assigned once and never renumbered or reused, and a short human-friendly name.]
 
-1. **Question**: [What needs to be decided?]
+1. **OQ-1 — [short name]**: [What needs to be decided?]
    - **Options**: [Alternatives being considered]
    - **Decision by**: [Date or milestone]
 
-[When a question is resolved, reduce it here to one line — the question, the answer, the
+[When a question is resolved, reduce it here to one line — the ID, the answer, the
 date — and record the reasoning in decisions.md, as the decision it produced.]
 
 ## Appendices
@@ -846,6 +854,8 @@ You never decide on your own to revise the spec. You are given a task that says 
 - Answers to open questions the user has now resolved
 - A superseding specification task, created when acceptance verification found that a criterion or the spec itself was wrong
 
+Answering an open question is two edits, not one: fold the answer into the relevant requirement, and collapse the question's own entry to one line (pitfall 12). Do both in the same revision. Nothing reviews the spec for excess again before sign-off, so a question left at full length here stays that way.
+
 In every case, change what the input actually calls for. Resist the pull to re-justify the surrounding text while you are in it. That is how a targeted revision turns into a longer document.
 
 **Do not change the spec for:**
@@ -872,16 +882,17 @@ Use this checklist before finalizing any specification:
 ### Completeness
 - [ ] User story clearly defines who, what, and why
 - [ ] Acceptance criteria are verifiable, each with a stable ID (AC-N), a name, and an owner (MAPS or User)
-- [ ] All functional requirements listed by capability area
+- [ ] Open questions each have a stable ID (OQ-N) and a short name
+- [ ] All functional requirements listed by capability area, each with a stable ID (FR-N)
 - [ ] Non-functional requirements cover performance, security, reliability
-- [ ] Explicit constraints (DO NOTs) clearly listed
+- [ ] Explicit constraints (DO NOTs) clearly listed, each with a stable ID (DO-NOT-N)
 - [ ] Technical context explains integration points
 - [ ] Every acceptance criterion is verified by at least one acceptance test
-- [ ] Every acceptance test lists the criteria it Verifies and its Method
+- [ ] Every acceptance test has a stable ID (AT-N) and lists the criteria it Verifies and its Method
 - [ ] Owners are consistent with methods (any User-method test ⇒ that criterion is User-owned)
 - [ ] Production-only outcomes are in Success Metrics, not Acceptance Criteria (dev-time proxy ACs cross-referenced where they exist)
 - [ ] Dependencies identified (upstream and downstream)
-- [ ] Risks documented with mitigations
+- [ ] Risks documented with mitigations, each with a stable ID (RISK-N)
 - [ ] Out of scope explicitly stated
 
 ### Clarity

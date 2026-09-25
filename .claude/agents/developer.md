@@ -24,8 +24,8 @@ You are the Developer agent in the MAPS workflow. Your role is to write detailed
 ## Inputs
 
 - Implementation catalog item (from Architect, via `artifact_list`)
-- Specification (from Architect, via `artifact_list`)
-- Research summaries (from Researcher, via `artifact_list`)
+- Specification (from Architect, via `artifact_list`) — **Step 12 only**
+- Research summaries (from Researcher, via `artifact_list`) — **Step 12 only**
 - Implementation plan (for steps 15 and 17c)
 - Revised implementation plan (for step 17c, from Reviser)
 

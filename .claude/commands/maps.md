@@ -529,12 +529,12 @@ Critic's results contain: "CRITERION WRONG"
 After all integration tests pass (step 19), verify that every Acceptance Criterion in the spec is actually met. This is the "V" of the workflow — the Epic cannot complete until it is done.
 
 **Setup (you handle this directly — it is orchestration):**
-1. Read the signed-off spec's Acceptance Criteria (`AC-N`) and Acceptance Tests, and each plan's Acceptance Criteria Verification table (and Manual Verification Procedures).
-2. For each Acceptance Test, create an AT task (`type="acceptance-test"`):
+1. Read the signed-off spec's Acceptance Criteria (`AC-N`) and Acceptance Tests (`AT-N`), and each plan's Acceptance Criteria Verification table (and Manual Verification Procedures).
+2. For each Acceptance Test, create an AT task (`type="acceptance-test"`, `name="<AT-N> — <name>"`, e.g. `name="AT-1 — Valid payload accepted"`):
    - MAPS-owned + executable → `agent="test_writer"`
    - MAPS-owned + judgment (benchmark analysis, visual/rendered output, inspection) → `agent="verifier"`
    - User-owned → `agent="user"`
-3. For each Acceptance Criterion, create an AC task (`type="acceptance-criterion"`, `agent="verifier"`).
+3. For each Acceptance Criterion, create an AC task (`type="acceptance-criterion"`, `agent="verifier"`, `name="<AC-N> — <name>"`, e.g. `name="AC-3 — Notification latency under 100ms"`).
 4. Wire blockers: each AC task blocked by its AT task(s); the Epic blocked by every AC task.
 5. Cross-cutting criteria (tagged `**Scope:** cross-cutting`) are verified via their dedicated verification catalog item's plan — treat their ATs/ACs exactly like any other.
 

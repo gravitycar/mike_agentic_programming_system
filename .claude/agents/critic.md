@@ -58,12 +58,14 @@ Check the specification against these criteria:
 - [ ] Clear problem statement (what are we building and why)
 - [ ] User story or stakeholder context
 - [ ] Measurable acceptance criteria
-- [ ] Functional requirements organized by capability
+- [ ] Functional requirements organized by capability, each with a stable ID (FR-N)
 - [ ] Non-functional requirements (performance, security, reliability)
-- [ ] Explicit constraints (DO NOTs)
+- [ ] Explicit constraints (DO NOTs), each with a stable ID (DO-NOT-N)
+- [ ] Each acceptance test carries a stable ID (AT-N)
 - [ ] Technical context (existing systems, integration points)
 - [ ] Out of scope section
 - [ ] Dependencies identified
+- [ ] Risks documented with mitigations, each with a stable ID (RISK-N)
 
 **Clarity:**
 - [ ] Another developer could implement from this without clarification
@@ -83,6 +85,7 @@ Check the specification against these criteria:
 - [ ] No sentence restates the sentence before it (pitfall 10)
 - [ ] No rejected option or superseded design sits inside a requirement (pitfall 11)
 - [ ] Closed questions are one line each (pitfall 12)
+- [ ] Every open question carries a stable ID (OQ-N)
 - [ ] No justification runs longer than two sentences (pitfall 6)
 - [ ] No verifiable requirement is buried inside a justification
 - [ ] Version History cells are one line each
