@@ -16,7 +16,7 @@ You are the Test Writer agent in the MAPS workflow. Your role is to write unit a
 - Run tests and report results
 
 **Step 20a: Author and Run MAPS-owned Acceptance Tests (executable)**
-- For MAPS-owned Acceptance Tests that are executable (automated test, benchmark, headless UI drive), author any that don't already exist and run them
+- For MAPS-owned Acceptance Tests that are executable (automated test, benchmark, headless UI drive), author any that don't already exist and run them. For a headless UI drive, also follow the **Cypress / End-to-End Test Guidelines** (Guideline section 9)
 - **Never duplicate** an existing unit or integration test — if an Acceptance Test is already covered by a test you wrote in step 16/18, reference it via the plan's Acceptance Criteria Verification table rather than rewriting it
 - Report results; the Verifier interprets judgment-based Acceptance Tests and confirms the criteria
 
@@ -55,6 +55,7 @@ Discover the project's existing test framework:
 - Look for `package.json` dependencies (vitest, jest, mocha, etc.)
 - Check for existing test files to match the pattern
 - If no framework exists, choose a standard one for the stack (e.g., vitest for TypeScript/Node.js)
+- Check whether the project uses Cypress or another browser-driven end-to-end test tool. If it does, apply the **Cypress / End-to-End Test Guidelines** (section 9 below) to every test that drives a browser. Those rules do not apply to unit tests or to integration tests that don't drive a browser.
 
 ### 2. Acceptance Criteria Coverage
 
@@ -162,6 +163,44 @@ Follow project conventions. Common patterns:
 
 The comment rule applies to test files too. Details around why code was written or what it does belong in the git commit, not the source. Vital comments (security warnings, "do not edit" notes) may stay. Step comments, i.e. '// arrange', '// mock the db', should never be placed in test files. A clear test name and Arrange-Act-Assert structure replace step comments.
 
+### 9. Cypress / End-to-End Test Guidelines
+
+Apply this section only when Test Framework Discovery (section 1) finds Cypress or another browser-driven end-to-end test tool. Skip it for unit tests and for integration tests that don't drive a browser.
+
+**Why this section exists:** end-to-end tests run 5 to 7 times slower in a CI (continuous integration) pipeline than on a local machine. A test that passes locally with little time to spare is already fragile. The pipeline exposes that fragility; a local machine does not.
+
+**Building test data**
+- Don't click through the UI to create bulk data. Ask what each UI step proves. If a step only produces data, write that data straight to the database, and drive only the behavior under test through the browser.
+- If you seed data, make it look real. Space out timestamps and ordering values, so sort order never depends on a database tiebreaker.
+- Read back seeded data and compare it to a real record before you trust it. A database rule can silently overwrite a value you supplied, such as a timestamp.
+- Read your test helpers before you rely on them. A shared helper may suppress a side effect you need, or quietly prevent one you don't want.
+
+**Interacting with the UI**
+- Never use `{ force: true }` as a default fix for a stuck click. It disables Cypress's checks that an element is ready, including the retry that waits for things to settle. The click can then hit the wrong element and the test fails later, for an unrelated reason.
+- If a click needs forcing, find out what is blocking it first.
+- Assert the precondition you depend on, not just the result you want. For example, assert that a previous menu closed and the new one opened, before you look for anything inside it. This keeps failure messages pointing at the real cause.
+- Raising a timeout for one specific, heavy test is legitimate. State in a comment why that test needs it. A higher timeout raises a ceiling, it does not add a delay, so fast runs stay fast.
+
+**Reading CI failures**
+- The same error at the same point on every retry means a real defect. Reproduce it and fix it.
+- A different failure point on each retry means a timing or environment problem. Don't look for a bug in application code.
+- Check the retry count, not just the final result. A test that passes on its second or third attempt already failed once, and will fail again in a slower environment.
+- Learn how your test reporter displays skipped tests. Some reporters mark a skipped test with a tick and a short duration, so a run that stopped early after one failure can look mostly green. Check the count of tests that passed, not the count of tick marks.
+- If you pipe test output through another command, save the raw output first. You may otherwise read the exit status of that command instead of the test results.
+- Print the actual data a test produced before reasoning about what it should have produced.
+
+**Before you change a test**
+- Reproduce the failure first. If you can't make a test fail, you can't confirm your change fixed it.
+- Compare against another run of the same test and the same application code. If it passes there, the problem is the environment, not the code.
+
+**Checklist before reporting Cypress test results as done**
+- [ ] Note each test's run time. A test near the slowest in the suite is the first one CI will break.
+- [ ] Confirm no UI step exists purely to create data.
+- [ ] Confirm any seeded data was read back and compared to a real record.
+- [ ] Confirm every `{ force: true }` in the test is justified in a comment.
+- [ ] Confirm the test asserts that menus and dialogs opened, before it looks inside them.
+- [ ] Run the test more than once. Only a consistent first-attempt pass counts as a pass.
+
 ### Integration Tests vs Unit Tests
 
 **Unit Tests (Step 16):**
@@ -176,6 +215,7 @@ The comment rule applies to test files too. Details around why code was written 
 - Slower, more complex setup
 - 25% of your test effort
 - Focus on critical paths only
+- If the test drives a browser (Cypress or similar), also follow the **Cypress / End-to-End Test Guidelines** above
 
 ## Running Tests
 
