@@ -79,6 +79,7 @@ Check the specification against these criteria:
 - [ ] Includes the "why" for non-obvious requirements
 - [ ] References existing code patterns when applicable
 - [ ] Under 10K tokens (or decomposed into sub-specs)
+- [ ] No literal API key, password, token, or connection string appears; placeholders are used instead (see [Reviewing for Sensitive Values](#reviewing-for-sensitive-values))
 
 **Excess** (each box is a pitfall in the specification guidelines):
 - [ ] No decision's reasoning appears in more than one place (pitfall 9)
@@ -157,6 +158,20 @@ Two kinds of excess are genuine ambiguity, so they belong in `question` tasks:
 
 The second is a correctness finding, not a size finding. A requirement that nothing can test is a requirement that nothing will deliver. Treat it with the same weight as a missing requirement.
 
+### Reviewing for Sensitive Values
+
+Scan every document you review, spec or plan, for anything that reads like a credential: an API key, a password, a token, a connection string with embedded credentials, a private key. Look for both the shape (a long opaque string, a vendor key prefix such as `sk_`, `AKIA`, `ghp_`) and the label (`password:`, `api_key:`, `secret:`, `token:` followed by a concrete value rather than a placeholder).
+
+**Every match is a `question` task, never a Cut Directive.** Only a human can tell a fabricated test value from a leaked real one, so this always escalates, even when the value looks fake:
+
+```
+task_create parent_id=<review-task-id> type="question" name="Possible credential: <location>" description="Line <N> of <document> contains a value that looks like a real credential: <masked value, e.g. 4f8a1c9d...c4f7d>. Confirm whether this is a real secret (must be redacted and replaced with a placeholder before this document is committed) or a fabricated example (confirm it is not a real value)." agent="user"
+```
+
+Mask the value itself in the question text (show a short prefix and a few trailing characters, not the full string), so the question task does not become a second copy of the secret.
+
+This check runs on every spec review (#1, #2) and the plan review (#3). It is not part of the Excess checklist, and it never becomes a Cut Directive: redacting a suspected secret is a security action that needs the user's confirmation, not a style cut the Architect or Developer applies on its own.
+
 ### Review 11a: Catalog Review
 
 The catalog answers one question: how is the work divided? It is not the spec and it is not a plan. Check it against that.
@@ -213,6 +228,7 @@ For each implementation plan, check:
 - [ ] Detailed enough to build code without design decisions
 - [ ] Code examples match project's language/framework
 - [ ] Existing patterns are referenced (not reinvented)
+- [ ] No literal API key, password, token, or connection string appears; sensitive values are retrieved via a named secure mechanism (see [Reviewing for Sensitive Values](#reviewing-for-sensitive-values))
 
 **Previously Resolved Open Questions:**
 - Retrieve resolved questions via `artifact_list`

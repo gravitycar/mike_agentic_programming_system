@@ -784,6 +784,35 @@ last-enabling story for the Cypress spec covering stories 1 through 3."
 
 **Lesson**: A spec cuts an epic into budget-sized units. That unit is a story, defined in `CATALOG_GUIDELINES.md` and expanded on in `/mr-maps`'s Story Sizing Guideline. Reuse that name. A new synonym, such as "seam", "slice" or "chunk", reads as a new concept to every later reader. "Seam" is worse. It already names something else in software engineering: a point where behavior changes without editing the code there (Feathers).
 
+### 14. Stating a Mutable Fact as if It Were Permanent
+
+**Problem**: The spec records another system's current status. That status changes over time, and nothing in the spec updates the copy when it does.
+
+```
+❌ Bad:
+"This requirement is blocked by task 1074 (open)."
+
+✅ Good:
+"This requirement is blocked by task 1074."
+```
+
+**Lesson**: A stable identifier, such as a task number, a file path, or a system name, carries no truth value that changes, so it never goes stale. A status, such as open, five columns, or v2.1, does carry a value that changes, and the spec has no mechanism to update its copy when the real one does. Reference the identifier. Leave the status out. A reader who needs the current status looks it up at the source, and that lookup is cheaper than a wrong "open" sitting in a signed-off document.
+
+### 15. Writing a Real Secret Into the Document
+
+**Problem**: The spec states an API key, password, token, or connection string as a literal value. The spec is committed to git, so the secret is now in version control, readable by anyone with repo access, and still there after the real value is later rotated.
+
+```
+❌ Bad:
+"Call the provider at https://api.example.com using API key 4f8a1c9d2e7b4f3a6c5d8e1b9a2c4f7d."
+
+✅ Good:
+"Call the provider at https://api.example.com using the API key retrieved from the
+project's secret store, referenced here as <API_KEY_PLACEHOLDER>."
+```
+
+**Lesson**: Never write a real sensitive value into a spec. Use a placeholder (`<API_KEY_PLACEHOLDER>`, `<DB_PASSWORD_PLACEHOLDER>`) and name where the real value is retrieved from, such as an environment variable or a secret manager, not what the value is. A worked example may use a fabricated value, but it must read as obviously fake, such as `FAKE-KEY-DO-NOT-USE`, never as a plausible real credential. A reader cannot tell a convincing fake from a leaked real one, so the fake must not try to be convincing.
+
 ---
 
 ## Verification and Testing
@@ -910,6 +939,8 @@ Use this checklist before finalizing any specification:
 - [ ] Current patterns and conventions respected
 - [ ] "Why" explained for non-obvious requirements, in one or two sentences, stated once (pitfall 6)
 - [ ] Related specifications linked
+- [ ] References to other systems (tasks, tickets, other documents) use a stable identifier only, never a status that will change (pitfall 14)
+- [ ] No API key, password, token, or connection string appears as a real value; placeholders are used instead, and any fabricated example value is obviously fake (pitfall 15)
 
 ### AI-Readiness
 - [ ] Structured format (headings, lists, tables)

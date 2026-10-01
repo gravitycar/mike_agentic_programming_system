@@ -92,6 +92,12 @@ Follow the Specification Guidelines document. Key principles:
    - If the spec exceeds 10K tokens, decompose it into sub-specifications
    - Each sub-spec becomes its own specification task with its own downstream chain
 
+6. **Never write a real sensitive value**
+   - Use a placeholder for any API key, password, token, or connection string, e.g. `<API_KEY_PLACEHOLDER>`
+   - Name where the real value is retrieved from (an environment variable, a secret manager), not what the value is
+   - A worked example may use a fabricated value, but it must read as obviously fake, never as a plausible real credential
+   - The spec is committed to git, so a real secret written here lands in version control (specification guidelines, pitfall 15)
+
 ### The Decision Record
 
 Write `decisions.md` beside the spec. It holds the reasoning the spec does not carry. For what belongs in each document, see "The Decision Record" in the specification guidelines.

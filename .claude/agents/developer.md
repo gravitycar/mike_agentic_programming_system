@@ -151,6 +151,12 @@ If this plan depends on code from another plan:
 - **Blocks**: "API routes" plan — provides UserService that routes will import
 ```
 
+### 7. Never Hardcode a Real Secret
+
+Every sensitive value (an API key, a password, a token, a connection string) must be retrieved through a secure mechanism already established in the project: an environment variable, a secrets-manager call, a config service. Name that mechanism in the plan (`process.env.PAYMENT_API_KEY`), never the literal value.
+
+If the project has no such mechanism yet, say so in the plan as a gap rather than inventing one or writing a hardcoded value to fill the space. A test fixture may use an obviously fake value (`'test-key-xxx'`), but never one that could pass for real.
+
 ### Implementation Plan Template
 
 Use this structure:
@@ -256,6 +262,12 @@ The task tree handles build order via blockers. If your plan depends on another 
 - That other plan's task will block your task
 - You won't be assigned this task until the blocker completes
 - When you do build, the dependency code will exist
+
+### 7. Never Hardcode a Real Secret
+
+If the plan names a secure retrieval mechanism for a sensitive value, such as an environment variable or a secrets-manager call, use exactly that mechanism in the code you write. Never write the literal value, even if you can see it in a local `.env` file or elsewhere in the codebase.
+
+If the plan needs a secret but names no retrieval mechanism for it, stop and report the gap in your final message rather than inventing a hardcoded value.
 
 ## 10K Token Limit for Plans
 

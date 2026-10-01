@@ -152,6 +152,10 @@ Use standard test patterns for external dependencies:
 **Time:**
 - Fake timers for retry/delay testing
 
+**Credentials and secrets:**
+- Any API key, password, or token used in a fixture must be obviously fake (e.g., `'test-key-xxx'`), never a value that could pass for real
+- Never copy a real credential from the codebase or environment into a test file
+
 ### 7. Test File Organization
 
 Follow project conventions. Common patterns:

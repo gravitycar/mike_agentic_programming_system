@@ -382,6 +382,7 @@ Don't write the entire implementation. The plan is a blueprint, not a finished c
 1. **Boilerplate** — imports, trivial getters/setters, standard error classes
 2. **Obvious implementations** — if the function signature makes the body self-evident, don't spell out the body
 3. **Framework plumbing** — standard Express middleware chains, standard React component lifecycle
+4. **Real credentials** — never show a literal API key, password, token, or connection string, even as an example. Show a placeholder or a retrieval call (`process.env.PAYMENT_API_KEY`) instead
 
 ### Example: Right Level of Detail
 
@@ -678,6 +679,34 @@ Test: duplicate email handling
   expect: throws UserExistsError"
 ```
 
+### 9. Stating a Mutable Fact as if It Were Permanent
+
+**Problem**: The plan records another task's or system's current status. That status changes over time, and nothing in the plan updates the copy when it does.
+
+```
+❌ Bad:
+"Blocked by the database schema plan (in progress)."
+
+✅ Good:
+"Blocked by the database schema plan."
+```
+
+**Lesson**: A stable identifier, such as a plan name, a task id, or a file path, carries no truth value that changes, so it never goes stale. A status, such as in progress, done, or open, does carry a value that changes, and the plan has no mechanism to update its copy when the task tree moves on. Reference the identifier in Dependencies. Leave the status out. The task tree already tracks status, and that is the one place it needs to live.
+
+### 10. Hardcoding a Real Secret Instead of a Retrieval Call
+
+**Problem**: A code example shows a literal API key, password, or token instead of a call that retrieves it securely. The plan is committed to git, and the Developer builds literally from it, so the secret lands in source code too.
+
+```
+❌ Bad:
+"const client = new PaymentClient({ apiKey: '4f8a1c9d2e7b4f3a6c5d8e1b9a2c4f7d' });"
+
+✅ Good:
+"const client = new PaymentClient({ apiKey: process.env.PAYMENT_API_KEY });"
+```
+
+**Lesson**: Every sensitive value needs a named, secure retrieval mechanism already established in the project, such as an environment variable, a secrets-manager call, or a config service. State that mechanism in the plan, never the literal value. If the project has no such mechanism yet, say so in the plan as a gap, rather than inventing one or writing a hardcoded value to fill the space. A test fixture may use an obviously fake value, such as `'test-key-xxx'`, but never one that could pass for real.
+
 ---
 
 ## Sizing and Decomposition
@@ -722,6 +751,8 @@ Use this checklist before finalizing any implementation plan:
 - [ ] New external dependencies (packages, libraries) are listed
 - [ ] Every constraint id from the catalog item appears in `Constraints observed`, with one clause on how the plan respects it
 - [ ] The spec's whole Explicit Constraints section was read, not only the ids the catalog named
+- [ ] Dependencies reference other plans and tasks by a stable identifier only, never their current status (pitfall 9)
+- [ ] No API key, password, token, or connection string appears as a literal value; sensitive values are retrieved via a named secure mechanism, and any fixture value is obviously fake (pitfall 10)
 
 ### Buildability
 - [ ] A Developer could build working code from this plan without design decisions
