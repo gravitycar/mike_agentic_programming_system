@@ -6,12 +6,13 @@ You are executing the `/mr-maps` command ("Mister Maps"), the MetaRouter variant
 
 Your base workflow is the stock `/maps` command at `.claude/commands/maps.md`. **Read that file first and follow it**, except where this overlay changes it. On every point this overlay addresses, this overlay is authoritative and supersedes the base.
 
-This overlay does not repeat the base. It changes five areas:
+This overlay does not repeat the base. It changes six areas:
 1. Document paths (where files live and what is committed).
 2. Shortcut epic and story numbers, plus a new Story Reconciler step (11c). The base's catalog review (11a) and catalog approval (11b) are inherited unchanged and run before it.
 3. Git branches (one story, one branch) and a restructured per-story build loop.
 4. Testing (unit plus Cypress, no classic integration tier).
 5. Story sizing: the 30-file / 500-logical-line budget is the base ceiling, and this overlay says what it buys here.
+6. Two peer-review gates: the spec, right after sign-off (Overlay 9); and each story's plan, right before that story's code is built (Overlay 5).
 
 Everything else is inherited unchanged from the base: the session-delegation model, critical review loops (3 iterations), the conditional LLM security review, human-review recording via a child, crash recovery, loop tracking, and error handling. The reference spec is `docs/specs/10-mr-maps.md`.
 
@@ -26,6 +27,7 @@ Everything else is inherited unchanged from the base: the session-delegation mod
 - **Shortcut epic** = the MAPS epic = the step-1 problem statement.
 - **Shortcut story** = one catalog item = one implementation plan = one `implement` task = one git branch.
 - There is no new "story" task type. A story is represented by its `plan` and `implement` tasks, which carry its Shortcut number in the `shortcut_story_id` column.
+- The **spec story** (Overlay 9) is a Shortcut story for the specification alone. It has no catalog item and no plan/implement task pair; its `shortcut_story_id` lives on the step-4 specification task instead.
 
 ---
 
@@ -144,13 +146,17 @@ Replace the base "build everything, then unit-test, then integration-test" phase
 For each `implement` task, in dependency order:
 
 1. **Checkout / create the branch** from the Branch Plan: `git checkout -b <branch> <base>`. The base is `master` or the dependency's branch.
-2. **Build the story's code.** Delegate the Developer with this story's plan (`implementation_plan` for `sc-<story#>_<slug>.md`).
-3. **Unit tests.** Delegate the Test Writer. Tests are **colocated** next to the source (for example jest `*.test.ts|tsx|js`; Go `*_test.go`). The build and test commands are **discovered at runtime** by the child, per stack. A MetaRouter repo may span several stacks (for example JavaScript/TypeScript services, React, Go). Name the stack in the Delegation Contract and let the child determine the commands from the repo.
-4. **Cypress gate.** Run the relevant Cypress specs for this story (Overlay 6). All must pass.
-5. **Triage / fix loop** on any unit or Cypress failure. Same as the base steps 17/19: delegate Critic triage, route CODE / TEST / BOTH, undo code before rebuild (`git checkout` modified files, delete new files), retest. **Hard limit 5 iterations**, then stop and ask the user.
-6. **Commit** code and tests on the branch. The commit message references the story, for example `sc-40469: <summary>`.
+2. **Commit the plan file only** (`sc-<story#>_<slug>.md`), on this branch, no code yet.
+3. **Plan review gate.** Tell the user this story's plan branch is ready to push for peer review. Create a gate task (`type="human-review"`, `agent="user"`) and wait for the user's confirmation that colleagues approved it. Do not move to step 4 until confirmed.
+4. **Build the story's code.** Delegate the Developer with this story's plan (`implementation_plan` for `sc-<story#>_<slug>.md`).
+5. **Unit tests.** Delegate the Test Writer. Tests are **colocated** next to the source (for example jest `*.test.ts|tsx|js`; Go `*_test.go`). The build and test commands are **discovered at runtime** by the child, per stack. A MetaRouter repo may span several stacks (for example JavaScript/TypeScript services, React, Go). Name the stack in the Delegation Contract and let the child determine the commands from the repo.
+6. **Cypress gate.** Run the relevant Cypress specs for this story (Overlay 6). All must pass.
+7. **Triage / fix loop** on any unit or Cypress failure. Same as the base steps 17/19: delegate Critic triage, route CODE / TEST / BOTH, undo code before rebuild (`git checkout` modified files, delete new files), retest. **Hard limit 5 iterations**, then stop and ask the user.
+8. **Commit** code and tests on the branch. The commit message references the story, for example `sc-40469: <summary>`.
 
-**Committing epic-level documents.** Epics have no branch, and the spec was approved (step 10) but not committed. Commit it now, on the **first** story branch created in this loop, as a small docs commit ahead of that story's code. Each story **plan file** is committed on **its own** story branch. Do not commit documents to `master` directly.
+**Any review pace works.** Stories build strictly one at a time in dependency order, so the plan review gate at step 3 never blocks on anything outside the user's control. A dependent story's branch cannot exist before its dependency's code is committed at step 8, so its plan cannot be pushed before that. An independent story's plan can be pushed and reviewed whenever the user likes, including after colleagues ask to see a prior story's already-committed code before approving the next plan — you only need the user's confirmation at step 3 to continue, never a fixed order of events outside the tool.
+
+Epics have no branch, so there is never an epic-level document to commit here — the spec was already committed and reviewed at its own Spec Review Gate (Overlay 9). Do not commit documents to `master` directly.
 
 **Boundary — local commits only.** `mr-maps` never pushes. The user controls `git push` and merge request creation. Do not run `git push` or open an MR.
 
@@ -205,6 +211,22 @@ The Cypress stacking rule guarantees any cross-story spec already ran green on a
 
 ---
 
+## Overlay 9 — Spec Review Gate (Step 10, NEW)
+
+Right after the base's step-10 sign-off, before step 11 (catalog) starts, give the spec its own Shortcut story and branch, separate from every catalog-item story, so colleagues review it in isolation.
+
+**9.1 — Create the spec story.** Same read/create pattern as the epic (Overlay 1): if `shortcut_write` is enabled, create a story under the epic and read back its number; otherwise ask the user for the number, or ask them to create it in Shortcut and report it back. Never do this earlier than sign-off — the spec can still change during critical review.
+
+**9.2 — Link it.** `task_update task_id=<specification-task-id> shortcut_story_id=<spec-story#>`. This is the same nullable column used for catalog items, anchored here on the step-4 specification task instead of a plan task — the spec has no catalog item and no plan/implement pair.
+
+**9.3 — Branch and commit.** Branch name: `<user>/docs/sc-<spec-story#>/<slug>`, off `master`, ≤40 characters, same construction as Overlay 4.1. `type` is always `docs` — do not propose or ask. `<slug>` is the spec's kebab-case name. Commit only the spec file — no catalog, no plans, no code exist yet.
+
+**9.4 — The gate.** Tell the user the branch is ready to push for peer review. Create a gate task (`type="human-review"`, `agent="user"`) and wait. Do not start step 11 until the user confirms colleagues approved it.
+
+**Boundary, unchanged.** You commit locally only. Pushing this branch, opening its MR, and reporting the review outcome stay with the user.
+
+---
+
 ## Delegation Contract Overlay (personas are unedited)
 
 The eight base personas and the Story Reconciler are not edited. All `mr-maps` behavior reaches them through the Delegation Contract you build for each task. Add these to the base contract as relevant:
@@ -246,7 +268,7 @@ You:
 2. Detect Shortcut write capability, record shortcut_write.
 3. Capture the Shortcut epic number, record shortcut_epic_number.
 4. Run the base setup (epic task, current_epic_id, project_init, LLM-security question, research chain).
-5. Follow the base workflow, applying the overlays above at steps 1, 11, 11c, 12, 15–20.
+5. Follow the base workflow, applying the overlays above at steps 1, 10, 11, 11c, 12, 15–20.
 ```
 
 Now begin, based on the user's problem statement.
