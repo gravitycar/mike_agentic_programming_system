@@ -11,7 +11,7 @@ This overlay does not repeat the base. It changes six areas:
 2. Shortcut epic and story numbers, plus a new Story Reconciler step (11c). The base's catalog review (11a) and catalog approval (11b) are inherited unchanged and run before it.
 3. Git branches (one story, one branch) and a restructured per-story build loop.
 4. Testing (unit plus Cypress, no classic integration tier).
-5. Story sizing: the 30-file / 500-logical-line budget is the base ceiling, and this overlay says what it buys here.
+5. Story sizing: a logical grouping (component or package), not a file/line ceiling — this overlay overrides the base here, to keep CI pipeline cascades short.
 6. Two peer-review gates: the spec, right after sign-off (Overlay 9); and each story's plan, right before that story's code is built (Overlay 5).
 
 Everything else is inherited unchanged from the base: the session-delegation model, critical review loops (3 iterations), the conditional LLM security review, human-review recording via a child, crash recovery, loop tracking, and error handling. The reference spec is `docs/specs/10-mr-maps.md`.
@@ -135,7 +135,7 @@ Delegate the Developer per plan task, as the base does at step 12, with two `mr-
 - **doc path** = `docs/plans/sc-<epic#>/sc-<story#>_<slug>.md` (Overlay 2).
 - **Emit a `## Branch` section** in the plan, holding: base branch, branch name, type, slug. Supply the Branch Plan row for this story so the section matches what the build loop will use. Ask the Developer to propose the `type` if the Branch Plan does not yet have one, then fold its choice back into the Branch Plan.
 
-Sizing is inherited from the base catalog guidelines; see Overlay 7 for what the ceiling buys here.
+Sizing follows the logical-grouping rule, not the base catalog guidelines; see Overlay 7.
 
 ---
 
@@ -188,14 +188,19 @@ Selecting the affected existing specs is a **reasoning step** (specs do not stat
 
 ## Overlay 7 — Story Sizing (Step 11)
 
-**The sizing ceiling is inherited, not overridden.** The base catalog guidelines already set it at under 30 logical production files and under 500 logical lines, as a ceiling rather than a target, with a floor of about 3 files or 50 lines. Those are MetaRouter's review numbers and the base now carries them for every epic. Do not re-state them in the delegation contract.
+**This overrides the base, for `mr-maps` only.** The base catalog guidelines set a numeric ceiling (under 30 logical production files, under 500 logical lines) for every other MAPS epic. `mr-maps` does not use it. Size each story to a **logical grouping** instead: a component, a package, a cohesive slice of the change.
 
-Two things are specific to `mr-maps`:
+**Why.** Each story is its own branch, and a dependent story stacks on its enabler's branch while that branch is unmerged. Every new commit triggers a new CI pipeline run, and MetaRouter's pipelines are flaky enough that each one needs separate watching to green. A commit partway through a long stack forces a rebase, and a fresh pipeline run, on every branch downstream of it. Larger, component-grouped stories mean a shorter stack, so a mid-stack change touches fewer branches and triggers fewer pipelines to re-watch.
 
-- **One catalog item = one Shortcut story = one branch = one MR.** The ceiling is what makes a story reviewable in one sitting, which is the reason it exists here.
-- **A budget-sized slice can hold UI and backend together.** That is what lets a Cypress spec run inside one story instead of forcing a stack (Overlay 6). Split into separate backend and UI stories only when the slice would exceed the ceiling.
+**Two failure directions.** Tell the Architect both, not just one:
+- **Too few, too large** — one story per epic loses per-story review and defeats the Spec and Plan Review Gates (Overlay 9, Overlay 5). A story must still be reviewable in one sitting.
+- **Too many, too small** — splitting by an arbitrary count reopens the cascade problem this guideline exists to avoid.
 
-"All test files" in the base exclusion includes Cypress specs. Split proposals surface in the normal catalog and plan review (steps 13–14) for the user to approve. There is no commit-time gate.
+**The split/merge test.** Two pieces of work belong in the same story if they sit in the same component or package. Split only across a genuine architectural boundary (frontend vs backend, or across distinct packages or services), never by size. When in doubt, keep work together.
+
+**A component-grouped story can still hold UI and backend together.** That is what lets a Cypress spec run inside one story instead of forcing a stack (Overlay 6), and grouping by component makes this the common case.
+
+Split and merge proposals surface in the normal catalog and plan review (steps 11b, 13–14) for the user to approve. There is no commit-time gate.
 
 ---
 
@@ -232,7 +237,7 @@ Right after the base's step-10 sign-off, before step 11 (catalog) starts, give t
 The eight base personas and the Story Reconciler are not edited. All `mr-maps` behavior reaches them through the Delegation Contract you build for each task. Add these to the base contract as relevant:
 
 - **Every document task:** the `doc path` and `artifact_type` from Overlay 2. Never rely on a persona default path.
-- **Architect at step 11:** the Cypress-slice point from Overlay 7. The sizing numbers come from the base, so do not repeat them. Also: **do NOT write Shortcut titles or descriptions into the catalog.** The Story Reconciler owns story text at 11c, and it has the spec to write it from. A catalog that carries story text duplicates work that has not happened yet and makes the catalog the longest document in the chain.
+- **Architect at step 11:** the logical-grouping sizing rule and the Cypress-slice point from Overlay 7. Also: **do NOT write Shortcut titles or descriptions into the catalog.** The Story Reconciler owns story text at 11c, and it has the spec to write it from. A catalog that carries story text duplicates work that has not happened yet and makes the catalog the longest document in the chain.
 - **Story Reconciler at step 11c:** map `agent="story_reconciler"` to `.claude/agents/story-reconciler.md`. Give it the catalog, the specification, and the epic number. It writes every new story's title and description. A description stands alone with no link to the spec, and makes three moves: one sentence naming the epic (identical in every story, compressed from the spec's Executive Summary), then why this story exists in terms of what the epic needs, then what it does.
 - **Developer at step 12:** emit a `## Branch` section from the Branch Plan row, and propose the `type` if missing.
 - **Developer at build (Overlay 5):** name the stack; build and test commands are runtime-discovered.
