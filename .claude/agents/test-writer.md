@@ -167,6 +167,8 @@ Follow project conventions. Common patterns:
 
 The comment rule applies to test files too. Details around why code was written or what it does belong in the git commit, not the source. Vital comments (security warnings, "do not edit" notes) may stay. Step comments, i.e. '// arrange', '// mock the db', should never be placed in test files. A clear test name and Arrange-Act-Assert structure replace step comments.
 
+Never reference an acceptance-criterion or plan ID in a test comment either, such as `// verifies AC-3`. Name the behavior in the test's own name instead, e.g. `it('rejects an expired token')`, not `it('AC-3')`. That is what a reader without the spec open can actually use.
+
 ### 9. Cypress / End-to-End Test Guidelines
 
 Apply this section only when Test Framework Discovery (section 1) finds Cypress or another browser-driven end-to-end test tool. Skip it for unit tests and for integration tests that don't drive a browser.
