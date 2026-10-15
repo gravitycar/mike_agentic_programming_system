@@ -133,6 +133,10 @@ describe('createUser - from plan test specs', () => {
 
 But don't stop there — add tests for edge cases the plan didn't cover.
 
+### 5a. Prefer Table-Driven Tests Over Repeated Cases
+
+When 3 or more cases share a shape and differ by one or two fields, use a builder with overrides plus `it.each`, not separate near-identical bodies. Before adding a new case, check whether an existing table already covers the same combination — watch for a `beforeEach` default that already sets the value you think you are varying.
+
 ### 6. Mocking External Dependencies
 
 Use standard test patterns for external dependencies:
@@ -180,6 +184,12 @@ Apply this section only when Test Framework Discovery (section 1) finds Cypress 
 - If you seed data, make it look real. Space out timestamps and ordering values, so sort order never depends on a database tiebreaker.
 - Read back seeded data and compare it to a real record before you trust it. A database rule can silently overwrite a value you supplied, such as a timestamp.
 - Read your test helpers before you rely on them. A shared helper may suppress a side effect you need, or quietly prevent one you don't want.
+
+**Reusing test infrastructure**
+- Check the "Prior Work in This Epic — Test Writer" list (see "Working as a Delegated Session") and the project's existing shared Cypress helpers and custom commands before writing setup or prelude code. Once 2 or more specs would otherwise repeat the same prelude, extract a shared command or task instead.
+- Seed data through the app layer, the GraphQL API, or an existing custom command. Do not write raw SQL or mutate the database directly inside a spec.
+- Never use a fixed `cy.wait(ms)` or an inflated timeout to paper over flakiness. Use a retry-able assertion instead — the same principle as the rule against `{ force: true }` on a stuck click, below.
+- Don't re-assert in Cypress what a unit test already covers. A Cypress spec asserts the user-visible outcome of a flow; it does not re-verify internal logic a unit test already owns.
 
 **Interacting with the UI**
 - Never use `{ force: true }` as a default fix for a stuck click. It disables Cypress's checks that an element is ready, including the retry that waits for things to settle. The click can then hit the wrong element and the test fails later, for an unrelated reason.

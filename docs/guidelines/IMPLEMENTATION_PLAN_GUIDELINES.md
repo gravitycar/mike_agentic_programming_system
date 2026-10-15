@@ -459,6 +459,8 @@ For each public function, method, or behavior:
 3. **Error cases** — invalid input, missing dependencies, failure conditions
 4. **State transitions** — if the function changes state, verify before and after
 
+When 3 or more test cases share the same shape and differ only in one or two fields, specify them as one parameterized table (so the Test Writer can turn it into `it.each`), not as separate repeated cases.
+
 ### Format
 
 Use a table for concise test case lists, and expand key scenarios with setup/action/expect detail.
