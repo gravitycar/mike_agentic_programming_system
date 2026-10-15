@@ -98,6 +98,10 @@ Follow the Specification Guidelines document. Key principles:
    - A worked example may use a fabricated value, but it must read as obviously fake, never as a plausible real credential
    - The spec is committed to git, so a real secret written here lands in version control (specification guidelines, pitfall 15)
 
+7. **State the loading/error/empty contract for async UI data**
+   - When a feature involves async data in the UI, state the loading/error/empty contract explicitly, and name exactly one owner of any state also kept by a wrapped third-party component
+   - If the Researcher found an existing loading/error/empty mechanism, name it in Technical Context as the one the plan must use
+
 ### The Decision Record
 
 Write `decisions.md` beside the spec. It holds the reasoning the spec does not carry. For what belongs in each document, see "The Decision Record" in the specification guidelines.

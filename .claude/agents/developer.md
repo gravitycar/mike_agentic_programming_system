@@ -98,6 +98,8 @@ export interface CreateUserInput {
 }
 ```
 
+**Specify async state explicitly:** For any component consuming async or derived data, specify all three states explicitly — loading, error, and populated — including which single component owns any state also kept by a wrapped third-party component.
+
 ### 3. Include Code Examples
 
 Unlike the specification (which has no code), implementation plans should show:
@@ -140,6 +142,8 @@ Follow the same service pattern as UserService (src/services/user-service.ts):
 - Validation before database operations
 - Use AppError base class for domain errors
 ```
+
+Before specifying a new loading/error/empty handling mechanism, check the spec's Technical Context and the codebase itself for an existing one. Reuse it. Only specify a new one if none exists, and say so in the plan's Notes, so the Critic can confirm that absence at review.
 
 ### 6. Handle Dependencies
 

@@ -813,6 +813,23 @@ project's secret store, referenced here as <API_KEY_PLACEHOLDER>."
 
 **Lesson**: Never write a real sensitive value into a spec. Use a placeholder (`<API_KEY_PLACEHOLDER>`, `<DB_PASSWORD_PLACEHOLDER>`) and name where the real value is retrieved from, such as an environment variable or a secret manager, not what the value is. A worked example may use a fabricated value, but it must read as obviously fake, such as `FAKE-KEY-DO-NOT-USE`, never as a plausible real credential. A reader cannot tell a convincing fake from a leaked real one, so the fake must not try to be convincing.
 
+### 16. Leaving the Loading/Error/Empty Contract Implicit
+
+**Problem**: A requirement describes a UI component that fetches data, but says nothing about what it shows while the fetch is pending, what it shows if the fetch fails, and what it shows if the fetch succeeds with nothing to display.
+
+```
+❌ Bad:
+"The panel displays the record's audit history."
+
+✅ Good:
+"The panel displays the record's audit history. While the query is pending, the panel
+shows a loading skeleton. If the query fails, the panel shows an error message naming
+what failed, not an empty-state message. If the query succeeds with zero rows, the panel
+shows 'No audit history for this record yet.'"
+```
+
+**Lesson**: An error rendered identically to "no data yet" is a wrong requirement, not a missing one, since it tells the user something false. State the loading, error, and empty-state behavior as distinct, verifiable requirements for every UI component that fetches data. Where the component wraps a stateful third-party component (e.g., a data-table with its own pagination), name exactly one owner of that state — two owners of the same state is how they end up disagreeing with each other.
+
 ---
 
 ## Verification and Testing
@@ -923,6 +940,7 @@ Use this checklist before finalizing any specification:
 - [ ] Dependencies identified (upstream and downstream)
 - [ ] Risks documented with mitigations, each with a stable ID (RISK-N)
 - [ ] Out of scope explicitly stated
+- [ ] Any UI component that fetches data has an explicit loading/error/empty contract, including a single named owner for any state a wrapped component also keeps (pitfall 16)
 
 ### Clarity
 - [ ] Another senior developer could implement without clarification

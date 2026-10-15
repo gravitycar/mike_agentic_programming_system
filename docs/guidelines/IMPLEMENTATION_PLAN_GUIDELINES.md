@@ -616,6 +616,8 @@ On network error: Throw RetryableError"
 
 Error handling is where implementations silently diverge from the spec. If the plan doesn't specify it, the Developer will guess — and different guesses produce inconsistent behavior.
 
+This includes a query that depends on another query's output — skip it until the dependency resolves, and propagate its loading and error state rather than defaulting to an empty value while it is pending.
+
 ### 4. Code Examples That Don't Match the Stack
 
 **Problem**: Showing pseudo-code or code in a different framework than the project uses.
@@ -644,6 +646,8 @@ The Developer builds literally from the plan. If the code example uses the wrong
 The Researcher analyzed the codebase before the specification was written, and its summary is available via `artifact_list`. The plan should leverage that research. Before specifying new code, check whether the functionality already exists. The plan should reference existing utilities, not reinvent them.
 
 This includes code built by an earlier catalog item in the same epic, not only code that predates the epic. Check the earlier item's plan and shipped files before writing a new constant, shape, or helper.
+
+It also includes a shared loading/error/empty handling hook or wrapper component. Building a second one, instead of reusing the first, is how two components end up disagreeing about the same piece of state.
 
 ### 6. Too Much or Too Little Detail
 

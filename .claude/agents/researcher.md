@@ -65,6 +65,7 @@ Your delegation prompt tells you **where** and **how** to write, via up to three
    - Error handling patterns
    - Testing approaches
    - Build and deployment setup
+   - If the epic involves fetching data in the UI, look for an existing shared mechanism for loading/error/empty handling — a hook, a wrapper component, a higher-order component. Document it under "Reusable Components" if one exists, by name and file path. Say explicitly if none exists; that absence is as useful to the Architect as a pattern would be.
 
 4. **Be concise**
    - Focus on what's relevant to the epic
