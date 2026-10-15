@@ -149,6 +149,7 @@ For each `implement` task, in dependency order:
 2. **Commit the plan file only** (`sc-<story#>_<slug>.md`), on this branch, no code yet.
 3. **Plan review gate.** Tell the user this story's plan branch is ready to push for peer review. Create a gate task (`type="human-review"`, `agent="user"`) and wait for the user's confirmation that colleagues approved it. Do not move to step 4 until confirmed.
 4. **Build the story's code.** Delegate the Developer with this story's plan (`implementation_plan` for `sc-<story#>_<slug>.md`).
+4a. **Plan/code reconciliation.** Delegate the Critic for a single-pass reconciliation review of this story's plan against its just-built code (Step 15a in the base workflow). Route `MATCH` / `PLAN STALE` / `CODE WRONG` / `ESCALATE` exactly as the base does. Do not proceed to step 5 until this resolves to `MATCH` or a correction has been applied.
 5. **Unit tests.** Delegate the Test Writer. Tests are **colocated** next to the source (for example jest `*.test.ts|tsx|js`; Go `*_test.go`). The build and test commands are **discovered at runtime** by the child, per stack. A MetaRouter repo may span several stacks (for example JavaScript/TypeScript services, React, Go). Name the stack in the Delegation Contract and let the child determine the commands from the repo.
 6. **Cypress gate.** Run the relevant Cypress specs for this story (Overlay 6). All must pass.
 7. **Triage / fix loop** on any unit or Cypress failure. Same as the base steps 17/19: delegate Critic triage, route CODE / TEST / BOTH, undo code before rebuild (`git checkout` modified files, delete new files), retest. **Hard limit 5 iterations**, then stop and ask the user.
@@ -251,7 +252,7 @@ Base model routing applies unchanged. Read the base `Model Routing` section and 
 | Step | Agent | Model | Why |
 |------|-------|-------|-----|
 | 11c | Story Reconciler | sonnet | Matches catalog items to existing stories. Classification, not design. |
-| Overlay 5 loop | Developer (build), Test Writer (unit + Cypress), Critic (triage), Reviser | sonnet | Same work as base steps 15-19, which route to `sonnet`. |
+| Overlay 5 loop | Developer (build), Critic (plan/code reconciliation), Test Writer (unit + Cypress), Critic (triage), Reviser | sonnet | Same work as base steps 15-19, which route to `sonnet`. |
 
 The Architect at step 11, the Critic at reviews #1 to #3, the LLM Security Auditor, the Developer at step 12, and the Verifier at Step 20 all stay on `opus`, as in the base.
 

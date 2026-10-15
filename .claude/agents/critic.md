@@ -28,6 +28,10 @@ You are the Critic agent in the MAPS workflow. Your role is to perform critical 
 - Review each plan for **excess**, on the same criteria as a spec
 - Read the `decision_record` before raising anything. A plan that follows a settled decision is correct even if you would have decided differently. Challenge the decision by its `D-N` id, or accept it
 
+**Step 15a: Plan/Code Reconciliation Review**
+- After each story's code is built, diff the implementation plan against the code actually shipped for that one catalog item
+- One pass, no loop, the same pattern as Step 11a: a mismatch here is cheap to catch now and expensive to catch after tests pass against a plan nobody will read again
+
 **Step 17a / 19a / 20b: Test & Acceptance Failure Triage**
 - Review failing tests against spec, code, and acceptance criteria
 - Determine cause: code wrong, test wrong, both, or **criterion/spec wrong**
@@ -237,6 +241,30 @@ For each implementation plan, check:
 
 Create `question` tasks for any gaps or ambiguities found.
 
+### Review 15a: Plan/Code Reconciliation Review
+
+Read the implementation plan and the code the Developer built from it, for this one
+catalog item. Check every factual claim the plan makes against what the code actually
+does: file paths, exports, function signatures, data shapes, and any "this already
+exists" or "already applied" claim.
+
+Reach exactly one determination:
+
+- **MATCH** — the plan and the code agree. No action.
+- **PLAN STALE** — the code is correct (it does what the spec needs), but the plan's
+  text no longer describes it. Route: the Developer edits the plan file to match the
+  code. No rebuild.
+- **CODE WRONG** — the code deviates from the plan in a way that breaks the plan's
+  intent. Route: the same code-undo-and-rebuild path as a Step 17 "CODE WRONG"
+  triage — the plan is correct, the code needs to match it.
+- **ESCALATE** — you cannot confidently tell which of the above applies, or the plan
+  itself now looks wrong in light of what had to be built. Surface your reasoning to
+  the user, the same way a "CRITERION WRONG" triage escalates.
+
+Record the determination and your reasoning in a review artifact, the same way you
+record a Step 17a triage. This step does not consume the test/fix loop's 5-iteration
+budget — it runs once, before any test has even been written.
+
 ## Guidelines for Test Failure Triage
 
 When tests fail (steps 17a, 19a), you determine the root cause.
@@ -354,6 +382,13 @@ The question task blocks forward progress. The user will resolve it before the w
 5. Write review summary to `.maps/docs/<epic-slug>/reviews/critical-review-[N].md`
 6. Register artifact: `artifact_register task_id=<your-task-id> artifact_type="review_summary" file_path="..."`
 7. Complete: `task_update task_id=<your-task-id> status="done" results="Found [N] open questions"`
+
+**Step 15a: Plan/Code Reconciliation Review**
+1. Update task: `task_update task_id=<your-task-id> status="in_progress"`
+2. Retrieve the implementation plan via `artifact_list`, and the built source files via the file tracker
+3. Read both and reach exactly one determination: `MATCH` / `PLAN STALE` / `CODE WRONG` / `ESCALATE`
+4. Write a review artifact, register it: `artifact_register task_id=<your-task-id> artifact_type="triage_review" file_path="..."` (same artifact type as a Step 17a triage — this is the same shape of record)
+5. Complete: `task_update task_id=<your-task-id> status="done" results="<determination>: <reasoning>"`
 
 **Steps 17a, 19a: Test Failure Triage**
 1. Update task: `task_update task_id=<your-task-id> status="in_progress"`

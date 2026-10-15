@@ -267,6 +267,7 @@ When gathering artifacts for delegation, use this lookup to find the model and t
 | 14a | LLM Security Auditor (plans) | opus | `specification`, all `implementation_plan`, `security_review` (spec-level), resolved questions | Spec + all plans + prior security review |
 | 14c | LLM Security Auditor (plans #2) | opus | `specification`, all `implementation_plan`, `security_review` (both), resolved questions | Spec + plans + both security reviews + user responses |
 | 15 | Developer (build) | sonnet | `implementation_plan`, `specification` | Plan for this item + spec + source file list |
+| 15a | Critic (plan/code reconciliation) | sonnet | `implementation_plan`, built source files for this item | Single pass, no loop — diffs the plan against the shipped code for one item, same pattern as 11a |
 | 16 | Test Writer (unit) | sonnet | `specification`, `implementation_plan` | Spec + plans + built source files |
 | 17a | Critic (triage) | sonnet | `specification`, `test_results`, `implementation_plan` | Spec + test output + plan + source code |
 | 17b | Reviser | sonnet | `implementation_plan`, `triage_review`, `test_results`, `specification` | Current plan + triage + test output + spec |
@@ -402,6 +403,26 @@ The catalog is not committed to git, so approval is recorded by marking the task
 
 Only after approval do you create the plan tasks. A catalog defect multiplies by the number of items, so nothing downstream should exist until the division of work is settled.
 
+## Plan/Code Reconciliation (Step 15a)
+
+One `agent-review` task per `implement` task, created at the same time as the `implement`
+task (see "After Plans Approved (Step 14)" below) and blocked by that specific `implement`
+task. **Single pass, no loop**, the same pattern as Step 11a.
+
+Delegate the Critic to diff the plan against the shipped code for that one item. Read its
+determination and route:
+
+- **MATCH** → no action. Proceed.
+- **PLAN STALE** → delegate the Developer to edit the plan file only. No rebuild, no code
+  undo.
+- **CODE WRONG** → code-undo (same mechanics as the test/fix loop), delegate the Developer
+  to rebuild from the unchanged plan.
+- **ESCALATE** → pause and ask the user, the same presentation as a "CRITERION WRONG"
+  escalation.
+
+This step does not consume the test/fix loop's 5-iteration budget. It runs once, before
+any test has been written.
+
 ## Critical Review Loops
 
 Critical reviews (steps 5, 8, 13) have a **3-iteration hard limit**. The catalog review at 11a is **not** one of them and has no loop:
@@ -434,7 +455,7 @@ LLM security reviews (steps 10a-10d and 14a-14d) have a **2-iteration hard limit
 Call `config_get key="llm_security_review"`. If the value is `disabled`, skip this entire section — do not create any security review tasks and proceed directly to the next workflow step (catalog for spec review; implement tasks for plans review).
 
 **Loop structure (spec review — steps 10a-10d):**
-1. After user signs off on spec (step 10), create LLM Security Auditor task (type="security_review", agent="llm_security_auditor")
+1. After user signs off on spec (step 10), create LLM Security Auditor task (type="agent-review", agent="llm_security_auditor")
 2. Delegate to child session → child determines applicability
 3. **If no LLM integration**: child marks task done with "not applicable", skip to step 11
 4. **If LLM integration detected**: child audits codebase, reviews spec, creates `question` tasks
@@ -449,12 +470,12 @@ Same pattern as above, but reviewing implementation plans after the Critic's rev
 
 **Creating the initial security review task (after step 10 sign-off):**
 ```
-task_create parent_id=<epic-id> type="security_review" name="LLM Security Review: Specification" description="Review the approved specification for LLM-specific security vulnerabilities. Follow docs/guidelines/LLM_SECURITY_GUIDELINES.md." agent="llm_security_auditor"
+task_create parent_id=<epic-id> type="agent-review" name="LLM Security Review: Specification" description="Review the approved specification for LLM-specific security vulnerabilities. Follow docs/guidelines/LLM_SECURITY_GUIDELINES.md." agent="llm_security_auditor"
 ```
 
 **Creating the plans security review task (after step 14):**
 ```
-task_create parent_id=<epic-id> type="security_review" name="LLM Security Review: Implementation Plans" description="Review implementation plans for LLM-specific security vulnerabilities. Follow docs/guidelines/LLM_SECURITY_GUIDELINES.md." agent="llm_security_auditor"
+task_create parent_id=<epic-id> type="agent-review" name="LLM Security Review: Implementation Plans" description="Review implementation plans for LLM-specific security vulnerabilities. Follow docs/guidelines/LLM_SECURITY_GUIDELINES.md." agent="llm_security_auditor"
 ```
 
 **Handling the "DEFER EPIC" recommendation:**
@@ -573,11 +594,11 @@ As the workflow progresses, create tasks dynamically:
 
 **After Spec Sign-Off (Step 10):**
 - Check `config_get key="llm_security_review"`:
-  - If `enabled`: Create LLM security review task (type="security_review", agent="llm_security_auditor"), block it by the sign-off task. Create catalog task (type="catalog", agent="architect"), block it by the security review task.
+  - If `enabled`: Create LLM security review task (type="agent-review", agent="llm_security_auditor"), block it by the sign-off task. Create catalog task (type="catalog", agent="architect"), block it by the security review task.
   - If `disabled`: Create catalog task directly, block it by the sign-off task only. No security review task created.
 
 **After Catalog (Step 11):**
-- Create the Catalog Review task (type="catalog_review", agent="critic"), blocked by the catalog task
+- Create the Catalog Review task (type="agent-review", agent="critic"), blocked by the catalog task
 - Do NOT create plan tasks yet. Plan tasks are created after the user approves the catalog at 11b
 
 **After Catalog Review (Step 11a):**
@@ -593,12 +614,13 @@ As the workflow progresses, create tasks dynamically:
 
 **After Plans Approved (Step 14):**
 - Check `config_get key="llm_security_review"`:
-  - If `enabled`: Create LLM security review task for plans (type="security_review", agent="llm_security_auditor"), block it by all plan question resolution tasks. After security review completes (and any follow-up questions resolved): create implement tasks, block all by the plans security review task.
+  - If `enabled`: Create LLM security review task for plans (type="agent-review", agent="llm_security_auditor"), block it by all plan question resolution tasks. After security review completes (and any follow-up questions resolved): create implement tasks, block all by the plans security review task.
   - If `disabled`: Create implement tasks directly, preserving blocker relationships from plans. No security review task created.
+- For each `implement` task, also create its Step 15a task (type="agent-review", agent="critic"), blocked by that same `implement` task.
 
-**After All Code Built (Step 15):**
+**After All Code Built and Reconciled (Steps 15, 15a):**
 - Create unit test task (type="test", agent="test_writer")
-- Block it by all implement tasks
+- Block it by all `implement` tasks **and** all Step 15a tasks — unit testing should not start against code a reconciliation pass hasn't yet confirmed or corrected
 
 **After Unit Tests Pass (Step 17):**
 - Create integration test task (type="test", agent="test_writer")
@@ -651,6 +673,7 @@ if (iteration >= HARD_LIMIT) {
 **Catalog**: All spec aspects covered, items are discrete (~3 files each)
 **Implementation Plan**: Detailed enough to build from without ambiguity (Critic validates)
 **Build**: Code compiles, passes linting (Test Writer validates functional correctness)
+**Plan/Code Reconciliation**: Plan and code agree, or the mismatch was corrected, before unit testing begins (single pass, no loop)
 **Tests**: All acceptance criteria have tests, tests run
 **Critical Review**: Finds all gaps in one pass (3-iteration limit)
 **LLM Security Review**: Identifies all LLM security concerns in one pass, or determines "not applicable" (2-iteration limit)

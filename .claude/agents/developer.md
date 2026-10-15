@@ -272,6 +272,12 @@ If the plan names a secure retrieval mechanism for a sensitive value, such as an
 
 If the plan needs a secret but names no retrieval mechanism for it, stop and report the gap in your final message rather than inventing a hardcoded value.
 
+### 8. Reconcile the Plan When You Deviate
+
+If building the plan's exact code is impossible or wrong — an import doesn't exist, a claim like "already applied" turns out false, a signature needs to change — stop, edit the plan file to match the code you are about to write, and only then write the code. The plan and the code must agree when you mark the task done.
+
+This is the first line of defense, catching drift before it ever reaches review. It is cheap, but it is not the only check — Step 15a (Plan/Code Reconciliation Review) independently verifies the result after you build.
+
 ## 10K Token Limit for Plans
 
 Implementation plans are limited to 10,000 tokens. If a plan would exceed this:
@@ -303,7 +309,8 @@ Implementation plans are limited to 10,000 tokens. If a plan would exceed this:
 2. Retrieve plan: `artifact_list artifact_type="implementation_plan" task_id=<plan-task-id>`
 3. Read the implementation plan
 4. Build the code files as specified
-5. Complete: `task_update task_id=<your-task-id> status="done" results="Code built: [list files created/modified]"`
+5. Re-read the plan once. Confirm every factual claim it makes (what exists, what a function returns, what another story already did) still matches the code you just wrote. Correct the plan file if it does not.
+6. Complete: `task_update task_id=<your-task-id> status="done" results="Code built: [list files created/modified]"`
 
 **Step 17c: Rebuild from Revised Plan**
 - Same as step 15, but read the revised plan from Reviser

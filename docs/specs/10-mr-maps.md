@@ -149,6 +149,7 @@ For each `implement` task, in dependency order:
 2. **Commit the plan file only** (`sc-<story#>_<slug>.md`), on its own story's branch, no code yet.
 3. **Plan review gate.** Tell the user this story's plan branch is ready to push for peer review. Create a gate task (`type="human-review"`, `agent="user"`) and wait for confirmation that colleagues approved it. Do not build until confirmed.
 4. **Build** the story's code (Developer).
+4a. **Plan/code reconciliation** — single-pass review of this story's plan against its just-built code (Critic). Routes MATCH / PLAN STALE / CODE WRONG / ESCALATE, same as the base's Step 15a. Do not proceed to step 5 until it resolves to MATCH or a correction has been applied.
 5. **Unit tests** — write + run, **colocated** per stack (jest next to source; Go `*_test.go`) (Test Writer).
 6. **Cypress gate** — run the relevant Cypress specs; all must pass (see [Testing Model](#testing-model)).
 7. **Triage/fix loop** on any failure — Critic → Reviser / Developer / Test Writer → retest. Hard limit: **5 iterations**, then stop and ask the user.

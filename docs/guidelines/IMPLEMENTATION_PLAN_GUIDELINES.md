@@ -710,6 +710,24 @@ Test: duplicate email handling
 
 **Lesson**: Every sensitive value needs a named, secure retrieval mechanism already established in the project, such as an environment variable, a secrets-manager call, or a config service. State that mechanism in the plan, never the literal value. If the project has no such mechanism yet, say so in the plan as a gap, rather than inventing one or writing a hardcoded value to fill the space. A test fixture may use an obviously fake value, such as `'test-key-xxx'`, but never one that could pass for real.
 
+### 11. Letting the Plan Go Stale After the Build Diverges From It
+
+**Problem**: The Developer deviates from the plan while building — a claim turns out false, an import doesn't exist, a signature needs to change — and fixes the code without updating the plan to match. The plan now describes a design the code no longer has, and nothing catches it until a much later reader trusts the wrong document.
+
+```
+❌ Bad:
+Plan says: "async createUser(...): Promise<User> { ...; return user; }"
+Shipped code: "return omit(user, ['password']);"
+(the plan is never corrected — no note anywhere that this changed)
+
+✅ Good:
+Plan says: "async createUser(...): Promise<User> { ...; return omit(user, ['password']); }
+  (changed from an earlier draft that returned the full user — the password hash must
+  never reach the response)"
+```
+
+**Lesson**: A plan that still describes an old design is worse than no plan, because a later reader trusts it. When the build diverges from the plan, correct the plan in the same task, with a one-line note of what changed and why. This is checked independently at Step 15a (Plan/Code Reconciliation Review), not left to self-report — see `docs/specs/07-workflow.md` and `.claude/agents/critic.md`.
+
 ---
 
 ## Sizing and Decomposition
@@ -756,6 +774,7 @@ Use this checklist before finalizing any implementation plan:
 - [ ] The spec's whole Explicit Constraints section was read, not only the ids the catalog named
 - [ ] Dependencies reference other plans and tasks by a stable identifier only, never their current status (pitfall 9)
 - [ ] No API key, password, token, or connection string appears as a literal value; sensitive values are retrieved via a named secure mechanism, and any fixture value is obviously fake (pitfall 10)
+- [ ] The plan was reconciled against the final shipped code before the story was marked done (pitfall 11)
 
 ### Buildability
 - [ ] A Developer could build working code from this plan without design decisions

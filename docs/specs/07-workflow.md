@@ -25,6 +25,7 @@ The workflow began as the 17 steps in the initial design notes and has since gro
 13. **Agent** — Critical Review #3. Review each implementation plan against previously answered open questions.
 14. **User** — Review and resolve remaining open questions.
 15. **Agent** — Build each implementation plan.
+15a. **Critic** — Plan/Code Reconciliation Review. Single pass, no loop (same pattern as 11a). Diffs the plan against the shipped code for one item; routes MATCH / PLAN STALE / CODE WRONG / ESCALATE.
 16. **Agent** — Run unit test suite.
 17. **Agent** — Review test results. For failures: update plan, undo changes, rebuild, retest.
 18. **Agent** — Write and run integration tests.
@@ -38,6 +39,7 @@ The workflow began as the 17 steps in the initial design notes and has since gro
 - Critical review loops (steps 5-9) must repeat until the Critic finds zero new open questions AND the user signs off. Hard limit: 3 iterations.
 - Implementation and test loops (steps 15-17, 18-19) and the acceptance verification loop (step 20) have a hard limit of 5 iterations
 - Integration testing (steps 18-19) follows the same triage/fix loop pattern as unit testing
+- Step 15a is not a loop and carries no iteration limit, the same as Step 11a — it runs once per implement task, between code being built and unit tests starting
 - Each step must update task status in the database via the MCP server
 - Code undo before rebuild: when a test failure requires rebuilding, Claude reverts modified files via `git checkout` and deletes new files before rebuilding from a revised plan
 - Workflow state is persisted entirely in the task tree. On re-invocation, `/maps` calls `next_task` to pick up where things left off
