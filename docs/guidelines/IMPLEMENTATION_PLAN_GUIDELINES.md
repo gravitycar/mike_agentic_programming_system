@@ -712,7 +712,7 @@ Test: duplicate email handling
 "const client = new PaymentClient({ apiKey: process.env.PAYMENT_API_KEY });"
 ```
 
-**Lesson**: Every sensitive value needs a named, secure retrieval mechanism already established in the project, such as an environment variable, a secrets-manager call, or a config service. State that mechanism in the plan, never the literal value. If the project has no such mechanism yet, say so in the plan as a gap, rather than inventing one or writing a hardcoded value to fill the space. A test fixture may use an obviously fake value, such as `'test-key-xxx'`, but never one that could pass for real.
+**Lesson**: Every sensitive value needs a named, secure retrieval mechanism already established in the project, such as an environment variable, a secrets-manager call, or a config service. State that mechanism in the plan, never the literal value. If the project has no such mechanism yet, say so in the plan as a gap, rather than inventing one or writing a hardcoded value to fill the space. A test fixture must carry a `gitleaks:allow` comment on the same line as the value (e.g. `const apiKey = 'test-fixture-key'; // gitleaks:allow`), regardless of how fake the value looks. Aikido's own secrets scanner deliberately does not exempt test-shaped values — it relies on manual triage for every generic finding — so an obviously-fake format is not a fix. The documented suppression comment is.
 
 ### 11. Letting the Plan Go Stale After the Build Diverges From It
 
@@ -777,7 +777,7 @@ Use this checklist before finalizing any implementation plan:
 - [ ] Every constraint id from the catalog item appears in `Constraints observed`, with one clause on how the plan respects it
 - [ ] The spec's whole Explicit Constraints section was read, not only the ids the catalog named
 - [ ] Dependencies reference other plans and tasks by a stable identifier only, never their current status (pitfall 9)
-- [ ] No API key, password, token, or connection string appears as a literal value; sensitive values are retrieved via a named secure mechanism, and any fixture value is obviously fake (pitfall 10)
+- [ ] No API key, password, token, or connection string appears as a literal value; sensitive values are retrieved via a named secure mechanism, and any fixture value shaped like a credential carries a `gitleaks:allow` comment on the same line (pitfall 10)
 - [ ] The plan was reconciled against the final shipped code before the story was marked done (pitfall 11)
 
 ### Buildability

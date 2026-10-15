@@ -155,7 +155,7 @@ If this plan depends on code from another plan:
 
 Every sensitive value (an API key, a password, a token, a connection string) must be retrieved through a secure mechanism already established in the project: an environment variable, a secrets-manager call, a config service. Name that mechanism in the plan (`process.env.PAYMENT_API_KEY`), never the literal value.
 
-If the project has no such mechanism yet, say so in the plan as a gap rather than inventing one or writing a hardcoded value to fill the space. A test fixture may use an obviously fake value (`'test-key-xxx'`), but never one that could pass for real.
+If the project has no such mechanism yet, say so in the plan as a gap rather than inventing one or writing a hardcoded value to fill the space. A test fixture must carry a `gitleaks:allow` comment on the same line as the value (e.g. `const apiKey = 'test-fixture-key'; // gitleaks:allow`), regardless of how fake the value looks. Aikido's own secrets scanner deliberately does not exempt test-shaped values — it relies on manual triage for every generic finding — so an obviously-fake format is not a fix. The documented suppression comment is.
 
 ### Implementation Plan Template
 
@@ -211,7 +211,8 @@ Acceptance criteria addressed: [List specific criteria]
 ## Code Comment Guidelines
 Avoid comments in code. Details around why code was written or what it does belong in
 the git commit, not in the source files. Comments which are absolutely vital (security
-warnings, "do not edit" notes) may be included in the source files. So-called 'step
+warnings, "do not edit" notes, a `gitleaks:allow` suppression marker on a fixture value)
+may be included in the source files. So-called 'step
 comments', i.e. '// initialize connection', '// provide user name', etc. should never
 be placed in source files. Never reference a spec, plan, or decision-record ID in a
 code comment, such as '// per AC-3' or '// see D-10'. The ID means nothing to a reader
@@ -257,7 +258,7 @@ The plan references existing patterns. Follow them:
 
 ### 5. Avoid Comments in Code
 
-Details around why code was written or what it does belong in the git commit, not in the source files. Comments which are absolutely vital (security warnings, "do not edit" notes) may be included. So-called 'step comments', i.e. '// initialize connection', '// provide user name', should never be placed in source files. Never reference a spec, plan, or decision-record ID either, such as `// per AC-3` or `// see D-10`. The ID means nothing to a reader without that document open. See the plan's Code Comment Guidelines section.
+Details around why code was written or what it does belong in the git commit, not in the source files. Comments which are absolutely vital (security warnings, "do not edit" notes, a `gitleaks:allow` suppression marker on a fixture value) may be included. So-called 'step comments', i.e. '// initialize connection', '// provide user name', should never be placed in source files. Never reference a spec, plan, or decision-record ID either, such as `// per AC-3` or `// see D-10`. The ID means nothing to a reader without that document open. See the plan's Code Comment Guidelines section.
 
 ### 6. Manage Dependencies
 

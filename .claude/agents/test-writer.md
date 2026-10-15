@@ -157,7 +157,7 @@ Use standard test patterns for external dependencies:
 - Fake timers for retry/delay testing
 
 **Credentials and secrets:**
-- Any API key, password, or token used in a fixture must be obviously fake (e.g., `'test-key-xxx'`), never a value that could pass for real
+- Any fixture value shaped like a credential must carry a `gitleaks:allow` comment on the same line, written for the file's language (`// gitleaks:allow` in JS/TS, `# gitleaks:allow` in Python). Do not rely on the value merely looking fake — Aikido's generic secret detector does not exempt test-shaped values, by its own documented design
 - Never copy a real credential from the codebase or environment into a test file
 
 ### 7. Test File Organization
@@ -172,6 +172,8 @@ Follow project conventions. Common patterns:
 The comment rule applies to test files too. Details around why code was written or what it does belong in the git commit, not the source. Vital comments (security warnings, "do not edit" notes) may stay. Step comments, i.e. '// arrange', '// mock the db', should never be placed in test files. A clear test name and Arrange-Act-Assert structure replace step comments.
 
 Never reference an acceptance-criterion or plan ID in a test comment either, such as `// verifies AC-3`. Name the behavior in the test's own name instead, e.g. `it('rejects an expired token')`, not `it('AC-3')`. That is what a reader without the spec open can actually use.
+
+A `gitleaks:allow` suppression marker is a machine-read exception, in the same category as a vital security-warning comment, not a step comment — it stays.
 
 ### 9. Cypress / End-to-End Test Guidelines
 
