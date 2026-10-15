@@ -159,6 +159,8 @@ For each `implement` task, in dependency order:
 
 Epics have no branch, so there is never an epic-level document to commit here — the spec was already committed and reviewed at its own Spec Review Gate (Overlay 9). Do not commit documents to `master` directly.
 
+**File Tracker and Build Summaries apply unchanged here.** The base's mechanism (Step 15/16 context) carries across the per-story loop exactly as it does in stock `/maps`. Every story's Developer and Test Writer delegation includes the terse build summaries of every earlier story in this epic, regardless of which git branch it landed on.
+
 **Boundary — local commits only.** `mr-maps` never pushes. The user controls `git push` and merge request creation. Do not run `git push` or open an MR.
 
 **Inherit `shortcut_story_id` onto implement tasks.** When you create `implement` tasks (after plans are approved, as the base does at step 14), copy each plan task's `shortcut_story_id` onto its `implement` task, so the loop reads the story number and Branch Plan row directly.

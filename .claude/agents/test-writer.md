@@ -337,6 +337,7 @@ When you are started as a delegated child session (via the Task tool from the /m
 1. **Read your context**: You start with no conversation history. Read all context documents listed in your delegation prompt before beginning work. Your task ID and epic ID are provided in the delegation prompt.
 1a. **Always compress before reading.** For every context document listed in your delegation prompt, call the `compress` MCP tool with its `file_path` and use the text it returns. Do NOT open the file yourself first. Reading it and then compressing it puts both copies in your context, which costs more than not compressing at all. Compression is lossless and never modifies the file on disk.
 1b. **Never write compressed text back.** Compression is for reading only. When you write or revise a document, write normal human-readable markdown to its path. MAPS documents are read by people as well as agents, so saving a compressed version over one destroys the human-readable original.
+1c. **Read prior work in this epic.** If your delegation prompt includes "Prior Work in This Epic" lists (Developer and/or Test Writer), read both before writing any test code. The Developer list tells you what production helpers and shapes already exist, so you don't mock or reimplement something that's already there. The Test Writer list tells you what test fixtures, builders, and Cypress commands already exist, so you extend them instead of recreating them.
 2. **Use MCP tools**: You have access to all MAPS MCP tools (task_update, artifact_register, artifact_list, config_get, compress).
 3. **Review existing code**: If your delegation prompt lists source files to review, read them to understand the implementation you are testing.
 4. **Follow the return protocol**:
@@ -349,6 +350,13 @@ When you are started as a delegated child session (via the Task tool from the /m
    - Status: done/failed
    - Files created: [test files]
    - Files modified: [if revising existing tests]
+   - Test summary (terse): same format and size cap as the Developer's Build summary
+     (terse) — a numbered list, 3 to 8 items, each a short verb phrase of 12 words or
+     fewer, no exposition. Call out any existing fixture, builder, or Cypress command you
+     extended, not only new test files you created.
+   - Reviewed for overlap: one line stating which prior Developer and/or Test Writer
+     bullets (if any) you considered and what you decided. If there was no prior work to
+     review, say so.
    - Test results: [total/passed/failed counts]
    - Failing tests: [brief list if any]
    - Artifacts registered: [list with types and paths]

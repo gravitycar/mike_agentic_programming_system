@@ -338,6 +338,7 @@ When you are started as a delegated child session (via the Task tool from the /m
 1. **Read your context**: You start with no conversation history. Read all context documents listed in your delegation prompt before beginning work. Your task ID and epic ID are provided in the delegation prompt.
 1a. **Always compress before reading.** For every context document listed in your delegation prompt, call the `compress` MCP tool with its `file_path` and use the text it returns. Do NOT open the file yourself first. Reading it and then compressing it puts both copies in your context, which costs more than not compressing at all. Compression is lossless and never modifies the file on disk.
 1b. **Never write compressed text back.** Compression is for reading only. When you write or revise a document, write normal human-readable markdown to its path. MAPS documents are read by people as well as agents, so saving a compressed version over one destroys the human-readable original.
+1c. **Read prior work in this epic.** If your delegation prompt includes a "Prior Work in This Epic — Developer" list, read it before writing any code. For every bullet that could plausibly overlap what you are about to build, open the specific files listed beside it and check before writing anything new. Reuse what you find there instead of writing a parallel implementation.
 2. **Use MCP tools**: You have access to all MAPS MCP tools (task_update, artifact_register, artifact_list, config_get, compress).
 3. **Review existing code**: If your delegation prompt lists source files to review, read them first to understand established patterns, naming conventions, and coding style before writing your own code.
 4. **Follow the return protocol**:
@@ -350,6 +351,19 @@ When you are started as a delegated child session (via the Task tool from the /m
    - Status: done/failed
    - Files created: [list]
    - Files modified: [list]
+   - Build summary (terse): a numbered list, 3 to 8 items, each a short verb phrase of 12
+     words or fewer, no exposition and no reasoning. Example: "1) Defined a shape-map in
+     shapes.ts. 2) Added search() to look up a shape by key. 3) Added validate() to check
+     an object against a shape." If a story needs more than about 8 bullets to describe,
+     it was probably sized too large for one catalog item (the same ceiling
+     `CATALOG_GUIDELINES.md` already sets). Explicitly call out any existing or legacy
+     file you touched or fixed, not only new files you created — e.g. "4) Fixed a
+     null-check bug in legacy-audit.js." A sibling story scanning for overlap needs to
+     see that an existing shared path was touched, not just that something new was built.
+   - Reviewed for overlap: one line stating which prior bullets (if any) you considered
+     and what you decided, e.g. "Reviewed 3 prior stories: reused shapes.ts's search()
+     from story 2; no other overlap found." If there was no prior work to review (first
+     story in the epic), say so.
    - Artifacts registered: [list with types and paths]
    - Key decisions: [implementation choices made]
    - Issues: [anything the next task should know]

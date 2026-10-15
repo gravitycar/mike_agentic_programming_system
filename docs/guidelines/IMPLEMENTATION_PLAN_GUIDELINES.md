@@ -641,6 +641,8 @@ The Developer builds literally from the plan. If the code example uses the wrong
 
 The Researcher analyzed the codebase before the specification was written, and its summary is available via `artifact_list`. The plan should leverage that research. Before specifying new code, check whether the functionality already exists. The plan should reference existing utilities, not reinvent them.
 
+This includes code built by an earlier catalog item in the same epic, not only code that predates the epic. Check the earlier item's plan and shipped files before writing a new constant, shape, or helper.
+
 ### 6. Too Much or Too Little Detail
 
 **Problem**: Either spelling out every line of code (the plan becomes the codebase) or staying too high-level (the plan becomes another spec).

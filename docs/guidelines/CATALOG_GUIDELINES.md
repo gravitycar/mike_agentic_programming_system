@@ -257,6 +257,14 @@ Delete it. The catalog states the division of work that stands. Git holds what i
 
 The impulse is right and the destination is wrong. That section belongs in `decisions.md`. A decision the catalog needs is referenced by its `D-N` id.
 
+### 6. Not naming a shared utility up front
+
+**Problem**: Two or more items will need the same constant, data shape, or helper, and the catalog leaves this implicit.
+
+Every item's plan author then independently decides whether to build it or reuse something else, and they decide differently. One hand-copies a shape from another file instead of importing it; the two drift apart the moment either one changes.
+
+Give the shared constant, shape, or helper its own catalog item, with every item that needs it listed as `Blocked by` it. This is a division-of-work fact, exactly what the catalog exists to carry, not a plan-time detail.
+
 ---
 
 ## Quick Reference: Catalog Checklist
@@ -267,6 +275,7 @@ The impulse is right and the destination is wrong. That section belongs in `deci
 - [ ] `Blocked by` and `Blocks` use exact item ids and agree with each other
 - [ ] Every acceptance criterion in the spec appears against at least one item
 - [ ] Cross-cutting criteria have their own verification item
+- [ ] Any constant, shape, or helper that 2+ items need is its own catalog item, not left for each item to reinvent
 
 ### Altitude
 - [ ] No file paths, line numbers or line counts

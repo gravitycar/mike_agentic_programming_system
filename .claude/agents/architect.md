@@ -147,6 +147,9 @@ Follow `docs/guidelines/CATALOG_GUIDELINES.md`. It owns the format, the altitude
 - Every acceptance criterion in the spec must be covered by at least one catalog item — feature items cover the criteria their feature satisfies
 - A **cross-cutting** criterion (tagged `**Scope:** cross-cutting` in the spec) that no feature item naturally owns gets its own dedicated **verification catalog item** (e.g., "Performance & Load Verification", "Security Properties Scan"). These items exist to verify a criterion, not to build a feature; they are typically blocked by the feature items they measure, and their Acceptance Tests run during step 20
 
+**Shared utilities:**
+- Before finalizing the catalog, scan the planned items for any constant, data shape, or utility function that more than one item will need. Give it its own catalog item that the others are `Blocked by`.
+
 **Sizing:**
 - Each item is one implementation plan, one branch and one human review
 - **Ceiling**: under 30 logical production files and under 500 logical lines. Exclude comments, blank lines, markdown, boilerplate, generated files and all test files from both counts

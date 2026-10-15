@@ -155,7 +155,8 @@ Before delegating, gather the information the child will need:
 2. **Epic ID**: Call `config_get key="current_epic_id"`
 3. **Relevant artifacts**: Call `artifact_list` with appropriate filters (see Context Curation table below)
 4. **Source files to review**: From your running list of files created/modified by previous tasks
-5. **Model**: Read the `Model` column for this step in the Context Curation table below
+5. **Prior work in this epic**: For a Developer or Test Writer delegation, pull the relevant entries from your File Tracker and Build Summaries (see below)
+6. **Model**: Read the `Model` column for this step in the Context Curation table below
 
 ### Step 2: Construct the Delegation Prompt
 
@@ -197,6 +198,17 @@ established patterns and conventions:
 - <file_path>
 [List from your running file tracker — omit this section if no previous files exist]
 
+## Prior Work in This Epic — Developer
+(For a Developer delegation at steps 15/17c, or a Test Writer delegation at steps
+16/18/20a. Pass every entry from the File Tracker and Build Summaries verbatim, in
+full, unfiltered. Omit this section if no prior Developer entry exists yet.)
+- <catalog item name> — Built: <bullet>; <bullet>; ... — Files: <path>, <path>
+
+## Prior Work in This Epic — Test Writer
+(Test Writer delegation only, steps 16/18/20a. Same rule: every entry, verbatim, in
+full. Omit this section if no prior Test Writer entry exists yet.)
+- <catalog item name> — Built: <bullet>; <bullet>; ... — Files: <path>, <path>
+
 ## Return Protocol
 1. Set task to in_progress: task_update task_id=<id> status="in_progress"
 2. Read your persona file and follow its instructions for this task type
@@ -228,7 +240,7 @@ After the child returns:
 1. **Read the child's return message** for a quick summary
 2. **Verify task completion**: Call `task_get task_id=<id>` to confirm status is `done`
 3. **Discover artifacts**: Call `artifact_list task_id=<id>` to see what was registered
-4. **Update your file tracker**: Note any files created/modified (from the child's summary) for use in future delegation prompts
+4. **Update your File Tracker and Build Summaries**: For a Developer or Test Writer child, append its "Build summary (terse)"/"Test summary (terse)" and files to the tracker, per the File Tracker and Build Summaries section, for use in future delegation prompts
 5. **Proceed**: Call `next_task()` to continue the workflow
 
 If the child reports failure or the task is not `done`, handle accordingly:
@@ -303,15 +315,29 @@ For each document-producing task, pass `mode: document` + `doc path` + `artifact
 
 Other document-producing agents (Critic reviews, Test Writer `test_results`, LLM Security Auditor, Verifier reports, Reviser revised plans) are **not yet contract-driven** — their personas still own their output paths, which is harmless (each writes a standalone document, not a shared one). Decoupling them is a later, optional step; until then, omit the Delegation Contract block for those tasks and they use their persona defaults.
 
-## File Tracker
+## File Tracker and Build Summaries
 
-Maintain a running list of files created and modified by child sessions. After each delegation:
+Maintain a running, per-epic list of what each Developer and Test Writer child built,
+not just which files. After each delegation that builds code or tests:
 
-1. Read the child's summary for "Files created" and "Files modified" lists
-2. Add them to your tracker
-3. When constructing future delegation prompts, include relevant files in the "Source Files to Review" section
+1. Read the child's final summary for "Files created", "Files modified", and
+   "Build summary (terse)" (Developer) or "Test summary (terse)" (Test Writer).
+2. Append one entry to the tracker, in build order:
+   `<catalog item name> — Built: <bullet>; <bullet>; ... — Files: <path>, <path>`.
+3. When delegating the next Developer (steps 15, 17c), include every prior Developer
+   entry from this epic, verbatim, under a "Prior Work in This Epic — Developer"
+   heading in the delegation prompt.
+4. When delegating the Test Writer (steps 16, 18, 20a), include every prior Developer
+   entry **and** every prior Test Writer entry, under two headings
+   ("Prior Work in This Epic — Developer" and "— Test Writer").
+5. Do not curate or filter this list for relevance before sending it. Pass it in full.
+   It stays cheap because each entry is terse by construction (see the persona
+   guidelines) — the receiving child judges relevance for its own upcoming task far
+   better than you can from a bare file path, which is the gap this replaces.
 
-This allows each subsequent child to understand established patterns without reading the entire codebase. Curate the list — only include files relevant to the next task, not every file ever created.
+This list is orchestrator-held conversation state, like the file tracker it replaces.
+It is not an MCP artifact and is not registered via `artifact_register`. It is
+cumulative within one epic only — never carry it across epics.
 
 ## Human Review (agent="user")
 
@@ -695,7 +721,7 @@ MCP tool errors return error categories. Handle them:
 1. **Delegate, don't do**: Agent tasks are ALWAYS delegated to child sessions via the Task tool. You never perform agent work yourself.
 2. **Human review: collect inline, record via child**: Present questions and collect answers in this conversation. Then spawn a recording child to call `task_update` for each answer. Never call `task_update` per-answer inline — those MCP responses stay in context permanently.
 3. **One child at a time**: Never spawn more than one child session simultaneously. Sequential execution only.
-4. **Track files**: Maintain your file tracker so each child gets relevant source file context.
+4. **Track files and build summaries**: Maintain your File Tracker and Build Summaries so each Developer/Test Writer child gets relevant source file context and every prior story's terse build summary, unfiltered.
 5. **Forward-only status**: Never reopen completed tasks — create new tasks instead.
 6. **Epic scoping**: All task/artifact operations are auto-scoped to current_epic_id.
 7. **Orchestration stays with you**: Loop counting, follow-up task creation, triage routing, code undo, and crash recovery are YOUR job — never delegated.
