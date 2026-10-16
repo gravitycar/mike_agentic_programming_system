@@ -221,7 +221,9 @@ comments', i.e. '// initialize connection', '// provide user name', etc. should 
 be placed in source files. Never reference a spec, plan, or decision-record ID in a
 code comment, such as '// per AC-3' or '// see D-10'. The ID means nothing to a reader
 without that document open, and that context belongs in the plan or the git commit,
-not the source file.
+not the source file. This rule applies equally to test names and descriptions
+(`it('...')`, `describe('...')`). Name the behavior under test, never the criterion or
+plan ID.
 ```
 
 ## Guidelines for Building Code
@@ -262,7 +264,7 @@ The plan references existing patterns. Follow them:
 
 ### 5. Avoid Comments in Code
 
-Details around why code was written or what it does belong in the git commit, not in the source files. Comments which are absolutely vital (security warnings, "do not edit" notes, a `gitleaks:allow` suppression marker on a fixture value) may be included. So-called 'step comments', i.e. '// initialize connection', '// provide user name', should never be placed in source files. Never reference a spec, plan, or decision-record ID either, such as `// per AC-3` or `// see D-10`. The ID means nothing to a reader without that document open. See the plan's Code Comment Guidelines section.
+Details around why code was written or what it does belong in the git commit, not in the source files. Comments which are absolutely vital (security warnings, "do not edit" notes, a `gitleaks:allow` suppression marker on a fixture value) may be included. So-called 'step comments', i.e. '// initialize connection', '// provide user name', should never be placed in source files. Never reference a spec, plan, or decision-record ID either, such as `// per AC-3` or `// see D-10`. The ID means nothing to a reader without that document open. This rule applies equally to test names and descriptions (`it('...')`, `describe('...')`) in any test specification you write into the plan — name the behavior under test, never the criterion or plan ID. See the plan's Code Comment Guidelines section.
 
 ### 6. Manage Dependencies
 

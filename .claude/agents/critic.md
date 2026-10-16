@@ -233,6 +233,7 @@ For each implementation plan, check:
 - [ ] Code examples match project's language/framework
 - [ ] Existing patterns are referenced (not reinvented)
 - [ ] No literal API key, password, token, or connection string appears; sensitive values are retrieved via a named secure mechanism (see [Reviewing for Sensitive Values](#reviewing-for-sensitive-values))
+- [ ] No code example inside the plan itself contains a comment citing a spec, plan, or decision ID. The Developer copies code examples verbatim, so an ID-laden comment in the plan becomes an ID-laden comment in shipped code
 
 **Previously Resolved Open Questions:**
 - Retrieve resolved questions via `artifact_list`

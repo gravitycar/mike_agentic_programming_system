@@ -246,7 +246,9 @@ comments', i.e. '// initialize connection', '// provide user name', etc. should 
 be placed in source files. Never reference a spec, plan, or decision-record ID in a
 code comment, such as '// per AC-3' or '// see D-10'. The ID means nothing to a reader
 without that document open, and that context belongs in the plan or the git commit,
-not the source file.
+not the source file. This rule applies equally to test names and descriptions
+(`it('...')`, `describe('...')`). Name the behavior under test, never the criterion or
+plan ID.
 ```
 
 ---

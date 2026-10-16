@@ -249,6 +249,9 @@ No `maps.md` or `mr-maps.md` changes beyond what item #2 already specifies — t
 - `.claude/agents/test-writer.md`
   - No change needed. Section 8 already states this rule for test comments and test names explicitly. Note this in the plan so the gap is understood as the plan's code examples and MR-review citation habits, not the Test Writer persona.
 
+- `.claude/agents/developer.md`
+  - Extended for consistency, beyond the original scope of this item: `developer.md` carries two verbatim duplicate copies of the same "never reference a spec/plan/decision ID in a code comment" sentence (the plan-template block, and the standalone "5. Avoid Comments in Code" guideline). Leaving them un-extended while the guideline doc and Critic's checklist moved on would recreate the exact drift problem this plan addresses elsewhere. Both copies now carry the same test-name extension.
+
 ---
 
 ## 7. Tests that don't actually prove their claim
