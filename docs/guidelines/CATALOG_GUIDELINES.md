@@ -123,7 +123,7 @@ The two sizes are independent. A 25-file item still gets about ten lines here, b
 
 **Purpose** is one line. It says which spec requirement this item builds, in the reader's own terms, citing its `FR-N` id where the requirement has one. It is not a summary of the requirement.
 
-**Scope** names components, not files. "The three modal subcomponents" is scope. A list of paths with line estimates is a plan.
+**Scope** names components, not files. "The three modal subcomponents" is scope. A list of paths with line estimates is a plan. When an item introduces a new entity type, its Scope notes whether that entity needs relational or scope metadata (e.g., parent references) for its natural place in audit or display scope, so this is not decided silently at build time.
 
 **Blocked by** and **Blocks** carry item ids only. These become blocker relationships in the task tree, so they must be exact.
 

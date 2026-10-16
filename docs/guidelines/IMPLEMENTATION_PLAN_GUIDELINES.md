@@ -751,6 +751,26 @@ Plan says: "async createUser(...): Promise<User> { ...; return omit(user, ['pass
 
 **Lesson**: "It runs" is not evidence of safety on a populated table. Measure what can be measured locally, and hand off exactly what a human needs to re-check in production, rather than asserting a technique is safe or guessing that a derived value's cost doesn't matter.
 
+### 13. Preferring a Silent Failure Over a Loud One
+
+**Problem**: Code that meets an input, case, or state it was not built to handle quietly returns a default, drops a field, or swallows an exception, instead of making the gap visible.
+
+```
+❌ Bad:
+"composeMap merges every source's fields into one object. Fields the merge doesn't
+recognize are left out of the result."
+
+✅ Good:
+"composeMap merges every source's fields into one object. A field it doesn't recognize
+throws UnmappedFieldError naming the field and the source, rather than being dropped."
+```
+
+**Lesson**: By default, code fails loudly for any case it wasn't built to handle: it throws, or otherwise makes the gap visible immediately, naming the specific case. This applies broadly — parsers, data transformations, a `switch`'s default branch, any function reducing several inputs to one output — not only merge or compose functions.
+
+A silent failure is sometimes genuinely the right call (an API contract that requires a specific response shape even on an unrecoverable case, for example). When the plan calls for one, it states the specific reasons as a bullet list, not just the design choice on its own.
+
+If the Developer concludes, while building, that a silent failure is unavoidable and the plan did not call for one, it does not decide this alone. It stops and reports the gap — with the same bullet-list reasoning — in its final message's Issues field, for the orchestrator to escalate to the user (see `.claude/commands/maps.md`, "Escalating a Necessary Silent Failure").
+
 ---
 
 ## Sizing and Decomposition
@@ -799,6 +819,7 @@ Use this checklist before finalizing any implementation plan:
 - [ ] No API key, password, token, or connection string appears as a literal value; sensitive values are retrieved via a named secure mechanism, and any fixture value shaped like a credential carries a `gitleaks:allow` comment on the same line (pitfall 10)
 - [ ] The plan was reconciled against the final shipped code before the story was marked done (pitfall 11)
 - [ ] Any query or migration against a populated table states how it was locally validated (EXPLAIN), and any derived/on-demand value is memoized or fetched on demand as appropriate (pitfall 12)
+- [ ] Any intentional silent failure states its specific reasons as a bullet list, not just the design choice on its own (pitfall 13)
 
 ### Buildability
 - [ ] A Developer could build working code from this plan without design decisions

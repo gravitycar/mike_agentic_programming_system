@@ -128,6 +128,7 @@ shifts rows under it whenever a row is inserted mid-scroll.
 - Never restate an entry's reasoning in the spec. The spec references `(D-N)`.
 - When a revision reverses a decision, the spec states only the design that now stands. The reversal narrative belongs here.
 - The record is not passed to the Developer, Test Writer, Reviser or Verifier. Write it for yourself, the Critic, and the user.
+- Record any deliberate deviation from an established module boundary or convention here, naming the convention it departs from and why. An unrecorded deviation reads as an oversight to the next reviewer, even when it was intentional.
 
 ### Building the Implementation Catalog
 

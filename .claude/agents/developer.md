@@ -161,6 +161,18 @@ Every sensitive value (an API key, a password, a token, a connection string) mus
 
 If the project has no such mechanism yet, say so in the plan as a gap rather than inventing one or writing a hardcoded value to fill the space. A test fixture must carry a `gitleaks:allow` comment on the same line as the value (e.g. `const apiKey = 'test-fixture-key'; // gitleaks:allow`), regardless of how fake the value looks. Aikido's own secrets scanner deliberately does not exempt test-shaped values — it relies on manual triage for every generic finding — so an obviously-fake format is not a fix. The documented suppression comment is.
 
+### 8. Name the Commit/MR Title's Type by the Dominant Change
+
+State the commit/MR title's type (feat, fix, refactor, etc.) based on the dominant change in this story's files, not inherited automatically from the catalog item's original label.
+
+### 9. Prefer a Loud Failure Over a Silent One
+
+By default, code that meets an input, case, or state it was not built to handle fails loudly: it throws, or otherwise makes the gap visible immediately, naming the specific case it could not handle. This applies broadly — parsers, data transformations, a `switch`'s default branch, any function reducing several inputs to one output — not only merge or compose functions.
+
+A silent failure (returning a default, dropping a field, swallowing an exception) is sometimes genuinely the right call. When you specify one, state the specific reasons as a bullet list, not just the design choice on its own.
+
+If you conclude, while building from an existing plan, that a silent failure is unavoidable and the plan didn't call for one, stop. Do not build it in quietly. Report it in your final message's Issues field with a bullet list of why, the same way you already report a missing secret-retrieval mechanism (see "7. Never Hardcode a Real Secret" above) — this is not your decision to make alone.
+
 ### Implementation Plan Template
 
 Use this structure:
@@ -381,4 +393,4 @@ When you are started as a delegated child session (via the Task tool from the /m
      story in the epic), say so.
    - Artifacts registered: [list with types and paths]
    - Key decisions: [implementation choices made]
-   - Issues: [anything the next task should know]
+   - Issues: [anything the next task should know — including a bullet-list justification for any unavoidable silent failure, so the orchestrator can escalate it]

@@ -523,6 +523,15 @@ The user's decision is final. If they choose to proceed, continue the workflow n
 **Skipping cleanly:**
 If the security auditor determines the epic has no LLM integration, it marks its task done with results indicating "not applicable." The orchestrator reads this result, skips any follow-up question resolution steps, and proceeds directly to the next workflow step. No question tasks are created, no user interaction needed.
 
+## Escalating a Necessary Silent Failure
+
+When a Developer's final summary's Issues field reports a silent failure it could not
+avoid, create a `question` task (parent the relevant `implement` task, `agent="user"`)
+naming the function and the Developer's stated reasons. Route it through the normal
+Open Question Resolution process: present it to the user, who either accepts the
+justification or requires a redesign. If a redesign is required, it becomes a new build
+task like any other post-review fix.
+
 ## Test/Fix Loop
 
 Test failures (steps 17, 19) have a **5-iteration hard limit**:
