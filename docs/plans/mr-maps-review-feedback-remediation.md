@@ -310,6 +310,7 @@ No `story-reconciler.md` or `architect.md` change for this item — see item #2'
 
 - `.claude/agents/developer.md`
   - Add to "Guidelines for Building Code": a new item stating the same four checks above, in the Developer's own voice, as things to verify (or flag as a plan gap) before marking a build task done.
+  - Added for consistency with items 1, 4, and 5: a matching "Quick Reference: Implementation Plan Checklist" line for this pitfall, which the original draft of this item omitted.
 
 ---
 

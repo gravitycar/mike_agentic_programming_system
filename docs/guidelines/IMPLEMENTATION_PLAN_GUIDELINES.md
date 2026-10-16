@@ -738,6 +738,17 @@ Plan says: "async createUser(...): Promise<User> { ...; return omit(user, ['pass
 
 **Lesson**: A plan that still describes an old design is worse than no plan, because a later reader trusts it. When the build diverges from the plan, correct the plan in the same task, with a one-line note of what changed and why. This is checked independently at Step 15a (Plan/Code Reconciliation Review), not left to self-report — see `docs/specs/07-workflow.md` and `.claude/agents/critic.md`.
 
+### 12. Skipping a Measurable Safety Check
+
+**Problem**: A query or migration ships against a populated table with no evidence it was checked, and a derived or on-demand value is computed eagerly instead of when it is actually needed.
+
+- A new or changed query against a populated table states how it was validated locally — an EXPLAIN run against representative seeded data — not just that it was written.
+- A migration adding an index or constraint to a populated table states its lock impact, established the same way (a local EXPLAIN against representative data), in the plan's Notes. Alongside it, give the exact command a human can re-run against production once local testing confirms it is safe to check there. Do not prescribe a specific non-locking migration technique as a default — its availability depends on the project's database platform and migration framework, and assuming it is available is itself a way to get this wrong.
+- A value derived from another value, and consumed by something that memoizes, is itself memoized.
+- Per-row or on-demand data is fetched when the user asks for it, not eagerly for every row on mount.
+
+**Lesson**: "It runs" is not evidence of safety on a populated table. Measure what can be measured locally, and hand off exactly what a human needs to re-check in production, rather than asserting a technique is safe or guessing that a derived value's cost doesn't matter.
+
 ---
 
 ## Sizing and Decomposition
@@ -785,6 +796,7 @@ Use this checklist before finalizing any implementation plan:
 - [ ] Dependencies reference other plans and tasks by a stable identifier only, never their current status (pitfall 9)
 - [ ] No API key, password, token, or connection string appears as a literal value; sensitive values are retrieved via a named secure mechanism, and any fixture value shaped like a credential carries a `gitleaks:allow` comment on the same line (pitfall 10)
 - [ ] The plan was reconciled against the final shipped code before the story was marked done (pitfall 11)
+- [ ] Any query or migration against a populated table states how it was locally validated (EXPLAIN), and any derived/on-demand value is memoized or fetched on demand as appropriate (pitfall 12)
 
 ### Buildability
 - [ ] A Developer could build working code from this plan without design decisions

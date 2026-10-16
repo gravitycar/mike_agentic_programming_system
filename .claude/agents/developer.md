@@ -285,6 +285,14 @@ If building the plan's exact code is impossible or wrong — an import doesn't e
 
 This is the first line of defense, catching drift before it ever reaches review. It is cheap, but it is not the only check — Step 15a (Plan/Code Reconciliation Review) independently verifies the result after you build.
 
+### 9. Verify Measurable Safety Properties
+
+Before marking a build task done, verify these (or flag a gap in the plan if you can't):
+- A new or changed query against a populated table was validated locally with an EXPLAIN run against representative seeded data, not just written and trusted.
+- A migration adding an index or constraint to a populated table states its lock impact (the same local-EXPLAIN method), plus the exact command a human can re-run against production once local testing confirms it's safe to check there. Don't assume a non-locking migration technique is available — that depends on the project's database platform and migration framework.
+- A value derived from another value, and consumed by something that memoizes, is itself memoized.
+- Per-row or on-demand data is fetched when the user asks for it, not eagerly for every row on mount.
+
 ## 10K Token Limit for Plans
 
 Implementation plans are limited to 10,000 tokens. If a plan would exceed this:
