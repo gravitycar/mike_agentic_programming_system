@@ -113,6 +113,12 @@ describe('UserService.createUser()', () => {
 - Concurrent operations
 - Idempotency
 
+### 4a. Prove the Test Actually Tests the Claim
+
+- Before finalizing a test, check that it would fail if the property under test were violated. Imagine breaking the code path and confirm the test would catch it.
+- For a test that checks two related collections stay in sync (e.g., an action list against a lookup map), assert both directions of containment, not just one.
+- A test fixture or helper must import the real production function it is meant to exercise, never reimplement that function's logic. A reimplementation drifts from the original silently.
+
 ### 5. Use Implementation Plan Test Specs
 
 The Developer's implementation plan includes test specifications. Use them as your starting point:

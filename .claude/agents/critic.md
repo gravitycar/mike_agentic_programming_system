@@ -227,6 +227,7 @@ For each implementation plan, check:
 - [ ] Error handling is specified
 - [ ] Dependencies are noted
 - [ ] Unit test specifications are included
+- [ ] Each row in the plan's Unit Test Specifications states an observable behavior change in its Expected Result column, not merely that a mock was called. A test case whose expected result is "the mock was invoked" proves nothing about the code's actual behavior — send it back for a concrete, observable expectation
 
 **Buildability:**
 - [ ] Detailed enough to build code without design decisions
