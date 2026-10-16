@@ -651,6 +651,8 @@ This includes code built by an earlier catalog item in the same epic, not only c
 
 It also includes a shared loading/error/empty handling hook or wrapper component. Building a second one, instead of reusing the first, is how two components end up disagreeing about the same piece of state.
 
+This includes structural conventions already established in the project — one export per file, importing from a package's public index rather than a deep path, using configured import aliases. State in the plan which convention applies, rather than leaving the Developer to default to whatever it writes first.
+
 ### 6. Too Much or Too Little Detail
 
 **Problem**: Either spelling out every line of code (the plan becomes the codebase) or staying too high-level (the plan becomes another spec).

@@ -102,6 +102,9 @@ Follow the Specification Guidelines document. Key principles:
    - When a feature involves async data in the UI, state the loading/error/empty contract explicitly, and name exactly one owner of any state also kept by a wrapped third-party component
    - If the Researcher found an existing loading/error/empty mechanism, name it in Technical Context as the one the plan must use
 
+8. **Carry forward the Researcher's naming and structural conventions**
+   - Copy the concrete examples from the Researcher's "Naming & Structural Conventions" section into Technical Context, by name and file path, so the plan inherits them rather than gesturing at "existing patterns" in the abstract
+
 ### The Decision Record
 
 Write `decisions.md` beside the spec. It holds the reasoning the spec does not carry. For what belongs in each document, see "The Decision Record" in the specification guidelines.

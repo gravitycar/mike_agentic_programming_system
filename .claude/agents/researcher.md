@@ -61,11 +61,16 @@ Your delegation prompt tells you **where** and **how** to write, via up to three
 
 3. **Document conventions**
    - File organization patterns
-   - Naming conventions
    - Error handling patterns
    - Testing approaches
    - Build and deployment setup
    - If the epic involves fetching data in the UI, look for an existing shared mechanism for loading/error/empty handling — a hook, a wrapper component, a higher-order component. Document it under "Reusable Components" if one exists, by name and file path. Say explicitly if none exists; that absence is as useful to the Architect as a pattern would be.
+
+3a. **Actively discover naming and structural conventions**
+   - Search for existing constant or label patterns relevant to the epic's domain — e.g., grep for similarly-suffixed exported constants (`*_LABELS`, `*_TYPES`, `*_CONFIG`) before assuming none exists.
+   - Find a sibling implementation of a similar feature, component, or hook, if one exists (e.g., if the epic adds a modal, find an existing modal and note its hook-naming pattern).
+   - Note which structural conventions the project actually follows in practice: one export per file, importing from a package's public index versus a deep path, and whether configured import aliases are actually used.
+   - **Every convention reported needs a concrete example with a file path.** "The project uses PascalCase for components" is not useful by itself. "Modals follow a `useXModal` hook pattern, see `src/hooks/useAuditLogModal.js`" is. State explicitly when no sibling pattern exists — that absence is as useful to the Architect as a pattern would be.
 
 4. **Be concise**
    - Focus on what's relevant to the epic
@@ -118,9 +123,9 @@ Both summaries should be markdown files with clear sections:
 ### [Area 2]
 ...
 
-## Conventions to Follow
-- [Convention 1]
-- [Convention 2]
+## Naming & Structural Conventions
+- [Convention]: [concrete example, with file path]
+- [Convention]: [concrete example, with file path]
 
 ## Reusable Components
 - [Component 1]: path/to/component.ts - [what it provides]
@@ -158,6 +163,7 @@ Both summaries should be markdown files with clear sections:
 ## Success Criteria
 
 - **Codebase summary**: Provides enough context that the Architect understands existing patterns without reading the entire codebase
+- Every reported naming or structural convention is backed by a concrete example and file path, not a generality
 - **Web research summary**: Provides enough domain knowledge that the Architect can make informed design decisions
 - Both summaries are under 10K tokens each
 - Quality is validated downstream by the Critic (you don't self-validate)

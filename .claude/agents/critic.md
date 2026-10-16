@@ -233,6 +233,7 @@ For each implementation plan, check:
 - [ ] Detailed enough to build code without design decisions
 - [ ] Code examples match project's language/framework
 - [ ] Existing patterns are referenced (not reinvented)
+- [ ] Naming in the plan reuses the codebase's existing vocabulary (an established `*_LABELS`-style constant, existing component names) rather than inventing new terms. No vocabulary from the planning process itself (engineering jargon describing the plan's own construction) appears in a proposed code or component name
 - [ ] No literal API key, password, token, or connection string appears; sensitive values are retrieved via a named secure mechanism (see [Reviewing for Sensitive Values](#reviewing-for-sensitive-values))
 - [ ] No code example inside the plan itself contains a comment citing a spec, plan, or decision ID. The Developer copies code examples verbatim, so an ID-laden comment in the plan becomes an ID-laden comment in shipped code
 
