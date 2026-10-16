@@ -183,6 +183,8 @@ Selecting the affected existing specs is a **reasoning step** (specs do not stat
 
 **Coverage vigilance.** Any story behavior that can be validated through the UI must have a UI-driven Cypress spec, new or existing. Purely internal or backend changes with no UI surface stay unit-only. Surface borderline cases to the user.
 
+**Feature flags.** Whenever a story ships a feature flag gating meaningful new behavior, its Cypress gate must include a run with the flag in its "on" state, not only the default state.
+
 **UI-driven only (house rule).** The behavior under test is exercised and asserted through the UI (`cy.visit`, `cy.contains(...).click()`, `cy.get(...).type()`, assert on rendered DOM). No cURL, `cy.request`, or DB query may stand in for a user action or serve as the assertion. Setup, teardown, and auth via `cy.task('query', ...)`, `cy.login()`, and `cy.overrideFeatureFlags(...)` are allowed, matching existing house practice. Put this rule in the Test Writer's Delegation Contract and have the Critic check it.
 
 **Running Cypress.** In-session Cypress needs the project's stack up. The commands to bring up the stack and run Cypress are discovered at runtime from the repo. Do not hardcode them.
@@ -204,6 +206,8 @@ Selecting the affected existing specs is a **reasoning step** (specs do not stat
 **A component-grouped story can still hold UI and backend together.** That is what lets a Cypress spec run inside one story instead of forcing a stack (Overlay 6), and grouping by component makes this the common case.
 
 Split and merge proposals surface in the normal catalog and plan review (steps 11b, 13–14) for the user to approve. There is no commit-time gate.
+
+**Legacy-path replacement.** When a story replaces a legacy path, its catalog item's Scope must note whether existing analytics or telemetry events need an equivalent on the new path, so parity is not dropped silently.
 
 ---
 

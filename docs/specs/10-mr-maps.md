@@ -183,6 +183,8 @@ Where enablers are genuinely independent (no dependency edge among them — e.g.
 
 **Coverage vigilance.** Any story behavior that *can* be validated through the UI **must** have a UI-driven Cypress spec (new or existing). Purely internal/backend changes with no UI surface stay unit-only; borderline cases surface to the user. This wires into step 20: a UI-facing acceptance criterion is not "verified" without a passing UI-driven Cypress spec behind it.
 
+**Feature flags.** Whenever a story ships a feature flag gating meaningful new behavior, its Cypress gate must include a run with the flag in its "on" state, not only the default state.
+
 **UI-driven only (house rule).** The behavior under test is exercised and asserted **through the UI** (`cy.visit`, `cy.contains(...).click()`, `cy.get(...).type()`, assertions on rendered DOM). No cURL / `cy.request` / DB query may stand in for a user action or serve as the assertion. Setup / teardown / auth via `cy.task('query', …)`, `cy.login()`, `cy.overrideFeatureFlags(...)` is permitted. That is existing house practice (e.g. `cypress/integration/settings-consent-categories.cy.js`), not the thing under test. It reaches the Test Writer as a contract instruction, and the Critic checks it.
 
 ### Acceptance verification across branches
@@ -206,6 +208,8 @@ The Cypress stacking rule guarantees that any genuinely cross-story spec already
 **A larger, component-grouped story can still hold UI and backend together**, which is what lets a Cypress spec run inside one story instead of forcing a stack (see Testing Model, Cypress). Grouping by component makes this the common case rather than the exception.
 
 **Still Architect-owned, still soft.** Sizing is decided at catalog building (step 11) and approved by the user in catalog and plan review (steps 11b, 13–14). There is no commit-time gate.
+
+**Legacy-path replacement.** When a story replaces a legacy path, its catalog item's Scope must note whether existing analytics or telemetry events need an equivalent on the new path, so parity is not dropped silently.
 
 ## Model Routing
 Base routing applies unchanged. See [05-orchestrator.md](05-orchestrator.md#model-routing). Two `mr-maps` steps are not in the base table:
