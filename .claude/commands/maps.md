@@ -220,6 +220,11 @@ full. Omit this section if no prior Test Writer entry exists yet.)
 
 ### Step 3: Spawn the Child Session
 
+Before spawning, write the task id being delegated to `.maps/.active_task`
+(plain text, just the integer, overwrite any existing content). This lets the
+SubagentStop telemetry hook correlate its token/time record back to this task.
+Safe because /maps never has more than one delegation in flight at a time.
+
 Use the Task tool to delegate:
 
 ```

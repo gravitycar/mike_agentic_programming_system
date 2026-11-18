@@ -7,6 +7,8 @@ The database is a per-project SQLite database stored at `.maps/maps.db` within t
 
 The database only enforces foreign keys. All business rule validation (status transitions, epic scoping, blocker integrity) is handled at the application level by the MCP server, which is the single gateway to the database. See [03-mcp-server.md](03-mcp-server.md).
 
+A second, separate SQLite database — `~/.maps/telemetry.db` — exists outside any single project, shared across all of them, to make cross-project token/time comparisons possible. It is out of scope for this document; see [10-telemetry.md](10-telemetry.md).
+
 ## Context
 Four tables are defined:
 

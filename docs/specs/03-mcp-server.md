@@ -66,9 +66,12 @@ Tools that perform the same verb on the same resource (e.g., "list tasks with di
 - `next_task` — find the next unblocked task, optionally filtered by agent role
 - `project_init` — create the `.maps/` directory structure and database
 
+#### Telemetry (see [10-telemetry.md](10-telemetry.md))
+- `telemetry_report` — report sub-agent token usage and elapsed time, formatted as a markdown table. Reads from the shared, cross-project `~/.maps/telemetry.db`, not the current project's own database — like `project_init` and `compress`, it does not take the normal per-project-db tool shape. Returns pre-formatted text rather than JSON.
+
 ### Validation
 
-The MCP server is the single gateway to the database and enforces all business rules. The database itself only enforces foreign keys.
+The MCP server is the single gateway to the database and enforces all business rules. The database itself only enforces foreign keys. One narrow exception: the `SubagentStop` telemetry hook writes directly to `~/.maps/telemetry.db`, a separate, non-project database that holds no task state — see [10-telemetry.md](10-telemetry.md). Reads from that store remain MCP-tool-only, via `telemetry_report`.
 
 #### Input Validation
 - Required fields are present (e.g., task must have name, type, status, agent)

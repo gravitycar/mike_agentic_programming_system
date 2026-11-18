@@ -66,6 +66,9 @@ mike_agentic_programming_system/
 ├── package.json                       # npm package (@mikegravity/maps), build/start scripts
 ├── tsconfig.json
 ├── maps-init.sh                       # Setup script — installs MAPS into a target project
+├── bin/
+│   ├── maps-server.sh                 # MCP server launcher (pins MAPS's own node)
+│   └── maps-subagent-telemetry.sh     # SubagentStop telemetry hook launcher
 ├── .claude/                           # Runtime intelligence layer (this repo dogfoods MAPS)
 │   ├── agents/                        # Agent persona markdown files
 │   │   ├── researcher.md
@@ -82,12 +85,17 @@ mike_agentic_programming_system/
 │   ├── index.ts                       # Entry point (stdio MCP server; takes project_path arg)
 │   ├── db/
 │   │   ├── schema.ts                  # Table DDL + Task/Blocker/Artifact/Config types
-│   │   └── database.ts                # better-sqlite3 access layer
+│   │   ├── database.ts                # better-sqlite3 access layer
+│   │   ├── telemetry-schema.ts        # agent_run table DDL (shared, cross-project)
+│   │   └── telemetry-database.ts      # better-sqlite3 access layer for ~/.maps/telemetry.db
+│   ├── hooks/
+│   │   ├── subagent-telemetry.ts      # SubagentStop hook entry point
+│   │   └── parse-transcript.ts        # Isolated, undocumented-format transcript parsing
 │   ├── mcp/
-│   │   ├── server.ts                  # MCP server: 16 tools, request routing
+│   │   ├── server.ts                  # MCP server: 17 tools, request routing
 │   │   ├── validation.ts              # Application-level validation
 │   │   ├── errors.ts                  # MapsError + 5 error categories
-│   │   └── tools/                     # task/epic/blocker/artifact/config/project-init tools
+│   │   └── tools/                     # task/epic/blocker/artifact/config/project-init/telemetry tools
 │   └── compressor/
 │       └── compress.ts                # 3-pass semantic densification
 └── docs/
@@ -113,7 +121,8 @@ mike_agentic_programming_system/
         ├── 06-compressor.md           # Semantic densification
         ├── 07-workflow.md             # 20-step workflow definition
         ├── 08-project-setup.md        # Setup script, portability
-        └── 09-maps-lite.md            # /maps-lite lightweight workflow (spec; impl pending)
+        ├── 09-maps-lite.md            # /maps-lite lightweight workflow (spec; impl pending)
+        └── 10-telemetry.md            # Sub-agent token/time telemetry
 ```
 
 ### Target project structure (produced by `maps-init.sh`)
@@ -122,6 +131,7 @@ mike_agentic_programming_system/
 target-project/
 ├── .mcp.json                     # MCP server config (merged, not overwritten)
 ├── .claude/
+│   ├── settings.json              # SubagentStop telemetry hook (merged, not overwritten)
 │   ├── agents/                   # Agent persona markdown files
 │   │   ├── researcher.md
 │   │   ├── architect.md
@@ -135,6 +145,7 @@ target-project/
 │       └── maps.md               # The /maps orchestrator command
 └── .maps/
     ├── maps.db                   # Per-project SQLite database
+    ├── .active_task               # Marker: task id of the in-flight delegation
     └── docs/
         └── <epic-slug>/          # Epic-scoped documents
             ├── research/
@@ -160,6 +171,7 @@ Read these specs in order — later specs depend on earlier ones.
 | **07-workflow.md** | 20-step workflow | Sequential execution, review loops, integration testing, backward navigation |
 | **08-project-setup.md** | Setup script and portability | `maps-init.sh`, `.mcp.json` merge, idempotent, Node.js + Claude Code prerequisites |
 | **09-maps-lite.md** | Lightweight `/maps` variant for small changes/bug fixes | Merged change brief, section-writing delegation contract, `question`-task confirmation gate, escalation, conditional Step 20 |
+| **10-telemetry.md** | Sub-agent token/time telemetry | `SubagentStop` hook, shared cross-project `~/.maps/telemetry.db`, `telemetry_report` tool |
 
 ## Workflow Overview
 
@@ -195,7 +207,7 @@ Read these specs in order — later specs depend on earlier ones.
 - **Acceptance verification** (step 20 fix loop): 5 iterations
 - **Spec review** (human-driven): no limit
 
-## MCP Server Tools (16 total)
+## MCP Server Tools (17 total)
 
 **Task**: `task_create`, `task_get`, `task_update`, `task_list`
 **Epic**: `epic_list`
@@ -204,6 +216,7 @@ Read these specs in order — later specs depend on earlier ones.
 **Config**: `config_set`, `config_get`
 **Compression**: `compress`
 **Convenience**: `next_task`, `project_init`
+**Telemetry**: `telemetry_report`
 
 All task/artifact operations are auto-scoped to the current epic via `current_epic_id` in the config table.
 
@@ -226,7 +239,7 @@ Forward-only. Never reopen completed tasks — create new ones instead.
 4. **One child at a time** — sequential delegation, never parallel; each child sees code produced by previous children
 5. **Task tree drives sequencing** — `next_task` + blocker dependencies, not hardcoded step logic
 6. **Documents are shared state** — agents share context through documents on disk, not conversation history
-7. **MCP server is the only DB gateway** — all validation at application level, DB enforces only foreign keys
+7. **MCP server is the only DB gateway** — all validation at application level, DB enforces only foreign keys. One accepted exception: the `SubagentStop` telemetry hook writes directly to the separate, non-project `~/.maps/telemetry.db` for pure usage telemetry that touches no task state. Reads from that store stay MCP-tool-only, via `telemetry_report`. See [10-telemetry.md](docs/specs/10-telemetry.md).
 8. **Forward-only status lifecycle** — completed tasks are never reopened; create new tasks instead
 9. **Epic scoping** — all operations auto-scoped to current epic via config table
 10. **Compression on demand** — documents stored human-friendly, compressed when loaded into context
@@ -250,3 +263,4 @@ Forward-only. Never reopen completed tasks — create new ones instead.
 - **Code undo before rebuild**: `git checkout` modified files + delete new files.
 - **Open question resolution**: One at a time, interactively, recorded before moving on.
 - **`.mcp.json` handling**: Merge MAPS entry into existing `mcpServers` object — never overwrite the file.
+- **`.claude/settings.json` handling**: Merge the `SubagentStop` telemetry hook into existing `hooks.SubagentStop`, deduped by command string — never overwrite the file.

@@ -164,7 +164,64 @@ NODE
 
 echo -e "${GREEN}✓${NC} MAPS MCP server configured in .mcp.json"
 
-# Add .maps/maps.db to .gitignore (track docs, ignore database)
+# Handle .claude/settings.json - merge the SubagentStop telemetry hook in,
+# don't overwrite. Same backup-first, abort-on-parse-failure discipline as the
+# .mcp.json merge above, but hooks.SubagentStop is a list, not a single named
+# key, so re-running this on every version update must dedupe by exact command
+# string instead of just overwriting one key.
+echo -e "${BLUE}Configuring SubagentStop telemetry hook...${NC}"
+
+SETTINGS_JSON="$PROJECT_DIR/.claude/settings.json"
+
+if [ -f "$SETTINGS_JSON" ]; then
+    cp "$SETTINGS_JSON" "$SETTINGS_JSON.backup"
+    echo -e "${GREEN}✓${NC} Created backup at .claude/settings.json.backup"
+fi
+
+( cd "$MAPS_DIR" && SETTINGS_JSON="$SETTINGS_JSON" MAPS_DIR="$MAPS_DIR" node <<'NODE'
+const fs = require('fs');
+const file = process.env.SETTINGS_JSON;
+const command = process.env.MAPS_DIR + '/bin/maps-subagent-telemetry.sh';
+
+let config = {};
+if (fs.existsSync(file)) {
+  const raw = fs.readFileSync(file, 'utf8').trim();
+  if (raw) {
+    try {
+      config = JSON.parse(raw);
+    } catch (e) {
+      console.error('ERROR: existing .claude/settings.json is not valid JSON. It was left untouched (backup at .claude/settings.json.backup).');
+      console.error('  ' + e.message);
+      process.exit(1);
+    }
+  }
+}
+
+if (typeof config.hooks !== 'object' || config.hooks === null) {
+  config.hooks = {};
+}
+if (!Array.isArray(config.hooks.SubagentStop)) {
+  config.hooks.SubagentStop = [];
+}
+
+const alreadyPresent = config.hooks.SubagentStop.some(
+  (entry) => Array.isArray(entry.hooks) && entry.hooks.some((h) => h.command === command)
+);
+
+if (!alreadyPresent) {
+  config.hooks.SubagentStop.push({ hooks: [{ type: 'command', command }] });
+  fs.writeFileSync(file, JSON.stringify(config, null, 2) + '\n');
+  console.log('Added SubagentStop telemetry hook to .claude/settings.json');
+} else {
+  console.log('SubagentStop telemetry hook already present in .claude/settings.json');
+}
+NODE
+)
+
+echo -e "${GREEN}✓${NC} SubagentStop telemetry hook configured in .claude/settings.json"
+
+# Add .maps/maps.db and .maps/.active_task to .gitignore (track docs, ignore
+# the database and the per-delegation task marker)
 if [ -f "$PROJECT_DIR/.gitignore" ]; then
     if ! grep -q "^\.maps/maps\.db$" "$PROJECT_DIR/.gitignore"; then
         echo -e "${BLUE}Adding .maps/maps.db to .gitignore...${NC}"
@@ -175,17 +232,25 @@ if [ -f "$PROJECT_DIR/.gitignore" ]; then
     else
         echo -e "${YELLOW}.maps/maps.db already in .gitignore${NC}"
     fi
+    if ! grep -q "^\.maps/\.active_task$" "$PROJECT_DIR/.gitignore"; then
+        echo ".maps/.active_task" >> "$PROJECT_DIR/.gitignore"
+        echo -e "${GREEN}✓${NC} Added .maps/.active_task to .gitignore"
+    else
+        echo -e "${YELLOW}.maps/.active_task already in .gitignore${NC}"
+    fi
 else
     echo -e "${YELLOW}No .gitignore found, creating one...${NC}"
     cat > "$PROJECT_DIR/.gitignore" <<EOF
 # MAPS database (docs are tracked)
 .maps/maps.db
+.maps/.active_task
 EOF
-    echo -e "${GREEN}✓${NC} Created .gitignore with .maps/maps.db"
+    echo -e "${GREEN}✓${NC} Created .gitignore with .maps/maps.db and .maps/.active_task"
 fi
 
-# Make the launcher executable. Git usually preserves this bit, but be safe.
+# Make the launchers executable. Git usually preserves this bit, but be safe.
 chmod +x "$MAPS_DIR/bin/maps-server.sh" 2>/dev/null || true
+chmod +x "$MAPS_DIR/bin/maps-subagent-telemetry.sh" 2>/dev/null || true
 
 # Verify the MAPS server is built. Build under MAPS's own node (the subshell cd
 # picks up MAPS's .tool-versions) so the native better-sqlite3 module matches
@@ -209,6 +274,7 @@ echo "  • Agent personas → .claude/agents/"
 echo "  • Commands (maps, maps-lite, mr-maps) → .claude/commands/"
 echo "  • Guidelines → .maps/guidelines/"
 echo "  • MCP configuration → .mcp.json (runs via bin/maps-server.sh)"
+echo "  • SubagentStop telemetry hook → .claude/settings.json (writes to ~/.maps/telemetry.db)"
 echo "  • Working directory → .maps/"
 echo ""
 echo "The MCP server runs under the node pinned in the MAPS repo's"

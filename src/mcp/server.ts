@@ -37,11 +37,16 @@ import {
 import { epicList } from './tools/epic-tools.js';
 import { projectInit } from './tools/project-init.js';
 import { compress } from '../compressor/compress.js';
+import { telemetryReport } from './tools/telemetry-tools.js';
+import { TelemetryDatabase } from '../db/telemetry-database.js';
 
 export class MapsServer {
   private server: Server;
   private database: MapsDatabase | null = null;
   private projectPath: string | null = null;
+  // Not project-scoped (reads/writes a single shared store across all
+  // projects), so this is instantiated eagerly rather than in initDatabase().
+  private telemetryDatabase: TelemetryDatabase;
 
   constructor() {
     this.server = new Server(
@@ -56,6 +61,7 @@ export class MapsServer {
       }
     );
 
+    this.telemetryDatabase = new TelemetryDatabase();
     this.setupToolHandlers();
   }
 
@@ -275,6 +281,33 @@ export class MapsServer {
             required: ['project_path'],
           },
         },
+
+        // Telemetry
+        {
+          name: 'telemetry_report',
+          description:
+            'Report sub-agent token usage and elapsed time from the shared, cross-project ' +
+            'telemetry store, formatted as a markdown table. Can compare across agent type, ' +
+            'project, or recorded MAPS version.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              scope: {
+                type: 'string',
+                enum: ['current_project', 'all_projects'],
+                description: 'Restrict to the current project, or compare across all recorded projects (default: current_project)',
+              },
+              group_by: {
+                type: 'string',
+                enum: ['agent_type', 'project', 'maps_version', 'date'],
+                description: 'Dimension to group rows by (default: agent_type)',
+              },
+              maps_version: { type: 'string', description: 'Filter to an exact MAPS git short hash (optional)' },
+              since: { type: 'string', description: 'ISO date; only include runs started on or after this date (optional)' },
+              until: { type: 'string', description: 'ISO date; only include runs started on or before this date (optional)' },
+            },
+          },
+        },
       ],
     }));
 
@@ -296,6 +329,16 @@ export class MapsServer {
           const source = this.readDocument((args as any).file_path);
           return {
             content: [{ type: 'text', text: compress(source) }],
+          };
+        }
+
+        // Special case: telemetry_report reads the shared telemetry store, not
+        // the per-project database, and returns a pre-formatted table rather
+        // than JSON.
+        if (name === 'telemetry_report') {
+          const text = telemetryReport(this.telemetryDatabase.getDb(), args as any, this.projectPath);
+          return {
+            content: [{ type: 'text', text }],
           };
         }
 

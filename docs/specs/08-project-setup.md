@@ -30,6 +30,7 @@ A setup script in the MAPS project directory (`maps-init.sh`) that the user runs
 3. **Copy the `/maps` command** into `.claude/commands/maps.md`
 4. **Copy specification guidelines** into `.maps/docs/`
 5. **Update `.mcp.json`** — if an existing `.mcp.json` exists, parse it and append the MAPS MCP server entry to the `mcpServers` object, preserving all existing entries. If none exists, create a new `.mcp.json` with just the MAPS entry. The entry points to the MAPS MCP server entry point with the project path as a parameter.
+6. **Update `.claude/settings.json`** — merge a `SubagentStop` hook entry into `hooks.SubagentStop`, preserving everything else already in the file, deduped by command string so re-running the script doesn't duplicate it. The hook points at `bin/maps-subagent-telemetry.sh` by its MAPS-install-absolute path — nothing is copied into the target project. It writes token/time telemetry to the shared, cross-project `~/.maps/telemetry.db`, not any per-project database. See [10-telemetry.md](10-telemetry.md).
 
 ### Version Updates
 Re-run the setup script. It overwrites the `.claude/agents/` and `.claude/commands/` files with the latest versions from the MAPS project directory. The `.maps/` data (database, artifacts) is preserved. The `.mcp.json` entry is updated if needed.
