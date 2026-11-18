@@ -6,13 +6,14 @@ You are executing the `/mr-maps` command ("Mister Maps"), the MetaRouter variant
 
 Your base workflow is the stock `/maps` command at `.claude/commands/maps.md`. **Read that file first and follow it**, except where this overlay changes it. On every point this overlay addresses, this overlay is authoritative and supersedes the base.
 
-This overlay does not repeat the base. It changes six areas:
+This overlay does not repeat the base. It changes seven areas:
 1. Document paths (where files live and what is committed).
 2. Shortcut epic and story numbers, plus a new Story Reconciler step (11c). The base's catalog review (11a) and catalog approval (11b) are inherited unchanged and run before it.
-3. Git branches (one story, one branch) and a restructured per-story build loop.
+3. Git branches (one story, one branch, always off `master`) and a restructured per-story build loop that ends at a merge gate.
 4. Testing (unit plus Cypress, no classic integration tier).
-5. Story sizing: a logical grouping (component or package), not a file/line ceiling — this overlay overrides the base here, to keep CI pipeline cascades short.
-6. Two peer-review gates: the spec, right after sign-off (Overlay 9); and each story's plan, right before that story's code is built (Overlay 5).
+5. Story sizing: a logical grouping (component or package), not a file/line ceiling. This overlay overrides the base here, to keep review rounds per epic low.
+6. A peer-review gate for the spec, right after sign-off (Overlay 9).
+7. A release flag: every story merges dark, and the flag turns the feature on after the last feature story merges (Overlay 10).
 
 Everything else is inherited unchanged from the base: the session-delegation model, critical review loops (3 iterations), the conditional LLM security review, human-review recording via a child, crash recovery, loop tracking, and error handling. The reference spec is `docs/specs/10-mr-maps.md`.
 
@@ -27,6 +28,7 @@ Everything else is inherited unchanged from the base: the session-delegation mod
 - **Shortcut epic** = the MAPS epic = the step-1 problem statement.
 - **Shortcut story** = one catalog item = one implementation plan = one `implement` task = one git branch.
 - There is no new "story" task type. A story is represented by its `plan` and `implement` tasks, which carry its Shortcut number in the `shortcut_story_id` column.
+- A **merge gate** (Overlay 5) is a `human-review` task per story that stays open until the user merges that story's MR. The **release gate** (Overlay 10) stays open until the user turns the release flag on and the feature is stable.
 - The **spec story** (Overlay 9) is a Shortcut story for the specification alone. It has no catalog item and no plan/implement task pair; its `shortcut_story_id` lives on the step-4 specification task instead.
 
 ---
@@ -124,10 +126,7 @@ Branch name format: `<user>/<type>/sc-<story#>/<short-desc>`, **40 characters or
 - `<story#>` — the plan task's `shortcut_story_id`.
 - `<short-desc>` — the catalog-item slug, **truncated** so the whole name fits 40 characters. Budget for the slug = 40 − len(user) − len(type) − len("sc-<n>") − 3 slashes.
 
-Base branch (the stacking rule), read from the blocker graph:
-- A story with no story dependency → base `master`.
-- A story that depends on another story's code → base = that dependency's branch (stacked). The dependency is not merged yet, so `master` lacks its code.
-- If a Cypress spec needs several independent stories at once, linearize them into a stack so one branch holds the whole slice (see Overlay 6). Encode that as blocker edges before building.
+Base branch: **always `master`** (the repo's default branch, `master` in `ion`). No story branches off another story's branch. A story that depends on another story's code waits until that dependency has **merged** (Overlay 5, merge gate), then branches off a freshly pulled `master` that already holds it. Stories never stack, so a merge never forces a rebase of a downstream branch.
 
 ### 4.2 — Write the plans
 
@@ -141,27 +140,29 @@ Sizing follows the logical-grouping rule, not the base catalog guidelines; see O
 
 ## Overlay 5 — Build and Test (supersedes base steps 15–19)
 
-Replace the base "build everything, then unit-test, then integration-test" phase with a **per-story build loop**. Build stories in dependency order. Process one story fully before the next. One child at a time, as always.
+Replace the base "build everything, then unit-test, then integration-test" phase with a **per-story build loop**. Build stories in dependency order. One child at a time, as always.
+
+**Gate tasks.** When you create the `implement` tasks (after plans are approved, as the base does at step 14), also create one **merge gate** per story: `task_create type="human-review" agent="user" name="Merge gate: sc-<story#>"`, blocked by that story's `implement` task. Wire the dependencies through the gates: a story that depends on story A is blocked by **A's merge gate**, not by A's `implement` task. Overlay 10 adds the release gate and the extra edges for the final feature story and the cleanup story.
 
 For each `implement` task, in dependency order:
 
-1. **Checkout / create the branch** from the Branch Plan: `git checkout -b <branch> <base>`. The base is `master` or the dependency's branch.
-2. **Commit the plan file only** (`sc-<story#>_<slug>.md`), on this branch, no code yet.
-3. **Plan review gate.** Tell the user this story's plan branch is ready to push for peer review. Create a gate task (`type="human-review"`, `agent="user"`) and wait for the user's confirmation that colleagues approved it. Do not move to step 4 until confirmed.
-4. **Build the story's code.** Delegate the Developer with this story's plan (`implementation_plan` for `sc-<story#>_<slug>.md`).
-4a. **Plan/code reconciliation.** Delegate the Critic for a single-pass reconciliation review of this story's plan against its just-built code (Step 15a in the base workflow). Route `MATCH` / `PLAN STALE` / `CODE WRONG` / `ESCALATE` exactly as the base does. Do not proceed to step 5 until this resolves to `MATCH` or a correction has been applied.
-5. **Unit tests.** Delegate the Test Writer. Tests are **colocated** next to the source (for example jest `*.test.ts|tsx|js`; Go `*_test.go`). The build and test commands are **discovered at runtime** by the child, per stack. A MetaRouter repo may span several stacks (for example JavaScript/TypeScript services, React, Go). Name the stack in the Delegation Contract and let the child determine the commands from the repo.
-6. **Cypress gate.** Run the relevant Cypress specs for this story (Overlay 6). All must pass.
-7. **Triage / fix loop** on any unit or Cypress failure. Same as the base steps 17/19: delegate Critic triage, route CODE / TEST / BOTH, undo code before rebuild (`git checkout` modified files, delete new files), retest. **Hard limit 5 iterations**, then stop and ask the user.
-8. **Commit** code and tests on the branch. The commit message references the story, for example `sc-40469: <summary>`.
+1. **Start from a fresh `master`.** Every merge gate this story depends on is `done`. Run `git fetch origin`, `git checkout master`, `git pull --ff-only`.
+2. **Create the branch** from the Branch Plan: `git checkout -b <branch> master`.
+3. **Build the story's code.** Delegate the Developer with this story's plan (`implementation_plan` for `sc-<story#>_<slug>.md`). The Delegation Contract carries the release rule from Overlay 10.
+3a. **Plan/code reconciliation.** Delegate the Critic for a single-pass reconciliation review of this story's plan against its just-built code (Step 15a in the base workflow). The Critic also checks the release rule: with the flag off, this branch changes no behavior a user or customer can see, apart from exceptions the user approved. Route `MATCH` / `PLAN STALE` / `CODE WRONG` / `ESCALATE` exactly as the base does. Do not proceed to step 4 until this resolves to `MATCH` or a correction has been applied.
+4. **Unit tests.** Delegate the Test Writer. Tests are **colocated** next to the source (for example jest `*.test.ts|tsx|js`; Go `*_test.go`). Code behind the flag is tested in both flag states. The build and test commands are **discovered at runtime** by the child, per stack. A MetaRouter repo may span several stacks (for example JavaScript/TypeScript services, React, Go). Name the stack in the Delegation Contract and let the child determine the commands from the repo.
+5. **Cypress gate.** Run the relevant Cypress specs for this story (Overlay 6). All must pass.
+6. **Triage / fix loop** on any unit or Cypress failure. Same as the base steps 17/19: delegate Critic triage, route CODE / TEST / BOTH, undo code before rebuild (`git checkout` modified files, delete new files), retest. **Hard limit 5 iterations**, then stop and ask the user.
+7. **Commit** the plan file (`sc-<story#>_<slug>.md`), code, and tests on the branch. The commit message references the story, for example `sc-40469: <summary>`. Colleagues review the plan and the code together, once, in the story's MR.
+8. **Merge gate.** Tell the user the branch is ready to push, review, and merge. The gate task stays open until the user confirms the MR has merged to `master`.
 
-**Any review pace works.** Stories build strictly one at a time in dependency order, so the plan review gate at step 3 never blocks on anything outside the user's control. A dependent story's branch cannot exist before its dependency's code is committed at step 8, so its plan cannot be pushed before that. An independent story's plan can be pushed and reviewed whenever the user likes, including after colleagues ask to see a prior story's already-committed code before approving the next plan — you only need the user's confirmation at step 3 to continue, never a fixed order of events outside the tool.
+**Open merge gates do not stop the loop.** When the next task is an open merge gate, ask the user whether that MR has merged. If it has, mark the gate `done` and continue. If not, build any other `implement` task whose blockers are all `done`, and ask about the gate again when that story reaches its own merge gate. A story that depends on an unmerged story waits. If no other story can build, wait at the gate for the user. The user may therefore have several open MRs at once, but never a stacked one.
 
-Epics have no branch, so there is never an epic-level document to commit here — the spec was already committed and reviewed at its own Spec Review Gate (Overlay 9). Do not commit documents to `master` directly.
+Epics have no branch, so there is never an epic-level document to commit here. The spec was already committed and reviewed at its own Spec Review Gate (Overlay 9). Do not commit documents to `master` directly.
 
 **File Tracker and Build Summaries apply unchanged here.** The base's mechanism (Step 15/16 context) carries across the per-story loop exactly as it does in stock `/maps`. Every story's Developer and Test Writer delegation includes the terse build summaries of every earlier story in this epic, regardless of which git branch it landed on.
 
-**Boundary — local commits only.** `mr-maps` never pushes. The user controls `git push` and merge request creation. Do not run `git push` or open an MR.
+**Boundary — local commits only.** `mr-maps` never pushes. The user controls `git push`, merge request creation, and merging. Do not run `git push`, open an MR, or merge one.
 
 **Inherit `shortcut_story_id` onto implement tasks.** When you create `implement` tasks (after plans are approved, as the base does at step 14), copy each plan task's `shortcut_story_id` onto its `implement` task, so the loop reads the story number and Branch Plan row directly.
 
@@ -171,7 +172,7 @@ Epics have no branch, so there is never an epic-level document to commit here �
 
 MetaRouter repos typically test with two tiers: colocated unit tests, and Cypress E2E specs (commonly under `cypress/`). There is usually no classic integration tier. **Discover the repo's actual test setup** (frameworks, folders, how to run them) rather than assuming. Where the repo has a UI covered by Cypress, Cypress is MetaRouter's most important tool for catching regressions, and the rules below apply. A repo with no UI or no Cypress runs the unit-test tier only.
 
-**Where a spec runs.** A Cypress spec exercises a full vertical slice (UI plus backend plus DB), so it is written and run on its **last-enabling story**, the story that completes the slice. For that branch to run and commit the spec green, it must contain the whole slice, so the Cypress-carrying story stacks (transitively) on every story its spec needs. If those stories are independent, linearize them into a stack (Overlay 4.1). No throwaway integration branch is used.
+**Where a spec runs.** A Cypress spec exercises a full vertical slice (UI plus backend plus DB), so it is written and run on its **last-enabling story**, the story that completes the slice. That branch must contain the whole slice, so the Cypress-carrying story is blocked by the merge gate of every story its spec needs. It then branches off a `master` that already holds them. Encode those edges at step 14, before building. No stacking and no throwaway integration branch is used.
 
 **Which specs run on a branch, before its commit.** Run the set:
 - every new or modified spec for this story, plus
@@ -183,7 +184,11 @@ Selecting the affected existing specs is a **reasoning step** (specs do not stat
 
 **Coverage vigilance.** Any story behavior that can be validated through the UI must have a UI-driven Cypress spec, new or existing. Purely internal or backend changes with no UI surface stay unit-only. Surface borderline cases to the user.
 
-**Feature flags.** Whenever a story ships a feature flag gating meaningful new behavior, its Cypress gate must include a run with the flag in its "on" state, not only the default state.
+**Flag states.** Every story's Cypress gate covers both states of the release flag (Overlay 10):
+- **Flag off (the default).** The affected existing specs pass unchanged. This proves the branch is dark.
+- **Flag on.** The story's new or modified specs pass with the flag on, through the repo's override helper (in `ion`, `cy.overrideFeatureFlags`).
+
+The first story that declares the flag also registers it as off in the test harness, following the repo's convention (in `ion`, `UNRELEASED_FEATURE_FLAGS` in `cypress/support/commands.js`).
 
 **UI-driven only (house rule).** The behavior under test is exercised and asserted through the UI (`cy.visit`, `cy.contains(...).click()`, `cy.get(...).type()`, assert on rendered DOM). No cURL, `cy.request`, or DB query may stand in for a user action or serve as the assertion. Setup, teardown, and auth via `cy.task('query', ...)`, `cy.login()`, and `cy.overrideFeatureFlags(...)` are allowed, matching existing house practice. Put this rule in the Test Writer's Delegation Contract and have the Critic check it.
 
@@ -195,15 +200,17 @@ Selecting the affected existing specs is a **reasoning step** (specs do not stat
 
 **This overrides the base, for `mr-maps` only.** The base catalog guidelines set a numeric ceiling (under 30 logical production files, under 500 logical lines) for every other MAPS epic. `mr-maps` does not use it. Size each story to a **logical grouping** instead: a component, a package, a cohesive slice of the change.
 
-**Why.** Each story is its own branch, and a dependent story stacks on its enabler's branch while that branch is unmerged. Every new commit triggers a new CI pipeline run, and MetaRouter's pipelines are flaky enough that each one needs separate watching to green. A commit partway through a long stack forces a rebase, and a fresh pipeline run, on every branch downstream of it. Larger, component-grouped stories mean a shorter stack, so a mid-stack change touches fewer branches and triggers fewer pipelines to re-watch.
+**Why.** Each story is one full review round: an MR, a CI pipeline to watch to green, a colleague's review, and a merge gate. MetaRouter's pipelines are flaky enough that each run needs watching. Component-grouped stories mean fewer of these rounds per epic.
 
 **Two failure directions.** Tell the Architect both, not just one:
-- **Too few, too large** — one story per epic loses per-story review and defeats the Spec and Plan Review Gates (Overlay 9, Overlay 5). A story must still be reviewable in one sitting.
-- **Too many, too small** — splitting by an arbitrary count reopens the cascade problem this guideline exists to avoid.
+- **Too few, too large.** One story per epic loses per-story review and produces one MR too large to review. A story must still be reviewable in one sitting.
+- **Too many, too small.** Splitting by an arbitrary count multiplies review rounds, pipelines, and merge gates without making any one MR easier to review.
 
 **The split/merge test.** Two pieces of work belong in the same story if they sit in the same component or package. Split only across a genuine architectural boundary (frontend vs backend, or across distinct packages or services), never by size. When in doubt, keep work together.
 
-**A component-grouped story can still hold UI and backend together.** That is what lets a Cypress spec run inside one story instead of forcing a stack (Overlay 6), and grouping by component makes this the common case.
+**Every story must be safe to merge alone.** With the flag off, `master` stays releasable after each story merges (Overlay 10). Do not split work so that one half breaks `master` until the other half merges.
+
+**A component-grouped story can still hold UI and backend together.** That lets a Cypress spec run inside one story instead of waiting for other stories to merge first (Overlay 6), and grouping by component makes this the common case.
 
 Split and merge proposals surface in the normal catalog and plan review (steps 11b, 13–14) for the user to approve. There is no commit-time gate.
 
@@ -213,13 +220,13 @@ Split and merge proposals surface in the normal catalog and plan review (steps 1
 
 ## Overlay 8 — Acceptance Verification (Step 20)
 
-Keep the base Step 20 guarantee: every acceptance criterion is verified, and the Epic completes only when every AC task is `done`. One `mr-maps` clarification:
+Keep the base Step 20 guarantee: every acceptance criterion is verified, and the Epic completes only when every AC task is `done`.
 
-The evidence is spread across unmerged story branches, and no single branch holds all of it. That is fine. By construction, every criterion's evidence already exists on some branch after the build loop:
-- a UI-facing criterion is backed by its Cypress spec, green on its last-enabling branch;
-- a backend or internal criterion is backed by its unit tests, green on its story branch.
+**Where Step 20 runs.** On the **final feature story's** branch, after its commit (Overlay 5, step 7) and before its merge gate. Overlay 10 makes that story wait until every other feature story has merged, so its branch is `master` plus the last story, which is the whole epic. Run Step 20 there **with the release flag on**.
 
-The Cypress stacking rule guarantees any cross-story spec already ran green on a branch holding the whole slice. So Step 20 is a **per-criterion roll-up** over evidence already produced. Materialize the AT → AC → Epic chain, confirm each AC against its branch-local evidence, and re-run nothing across branches. A UI-facing criterion is not verified without a passing UI-driven Cypress spec behind it. The Verifier delegation, confidence labels, and completion rule are inherited from the base.
+**Fixes land in the final MR.** A Step 20 failure enters the base Step 20 fix loop (5 iterations) on this branch, even when the faulty code came from an earlier, already-merged story. Re-run the Cypress gate with the flag off and on after any fix.
+
+A UI-facing criterion is not verified without a passing UI-driven Cypress spec behind it, run with the flag on. The Verifier delegation, confidence labels, and completion rule are inherited from the base. The cleanup story (Overlay 10) builds after Step 20, and its own gates keep the verified behavior intact.
 
 ---
 
@@ -239,17 +246,44 @@ Right after the base's step-10 sign-off, before step 11 (catalog) starts, give t
 
 ---
 
+## Overlay 10 — Release Flag (Steps 4, 11, 14, and after Step 20, NEW)
+
+Every story merges to `master` dark. One release flag turns the feature on after the last feature story merges. This lets stories merge one at a time, with no stacking.
+
+**The release rule.** After each story merges, `master` is safe to release with the flag off: no user or customer sees changed behavior.
+- **Code that can read the flag** hides its new behavior behind it. The flag defaults to off in code, so an undeclared or unreachable flag stays off. In `ion`, only the front end can read flags (LaunchDarkly client SDK, declared in `packages/app/src/launch-darkly/featureFlags.js`).
+- **Code that cannot read the flag** (migrations, Hasura metadata, backend services) must be **inert**: additive schema changes, new endpoints or queries that nothing calls yet, new permissions nothing uses yet.
+- **Exceptions.** A change that cannot be inert, for example a changed default or a destructive migration, is an exception. The Architect records it as an open question in the spec, and the user decides at the base spec-review steps. The decision is recorded like any other answer.
+
+**10.1 — Spec (step 4).** The Architect adds a `## Release Flag` section to the spec. It names the flag, following the repo's naming convention, and says what the flag hides. It lists each change that cannot read the flag and why that change is inert, or marks it as an exception. **One flag by default.** A second flag is allowed only for a part that must turn on or roll back separately, and the section must say why. The Critic checks this section at reviews #1 and #2.
+
+**10.2 — Catalog (step 11).** The Architect adds a **cleanup story** as the last catalog item, "Retire `<flag>`". It removes the flag checks, the flag-off code path, the flag declaration, and the test-harness overrides, so the feature runs unconditionally. It goes through 11c, plans, and reviews like any other story. Critic Review #3 checks that every plan keeps `master` releasable with the flag off.
+
+**10.3 — Gate wiring (step 14).** Besides the merge gates of Overlay 5:
+- **Final feature story.** Pick the last feature story in dependency order. Block it by the merge gate of **every** other feature story, not only its dependencies, so its branch holds the whole epic for Step 20 (Overlay 8).
+- **Release gate.** `task_create type="human-review" agent="user" name="Release gate: <flag>"`, blocked by the final feature story's merge gate.
+- **Cleanup story.** Block its `implement` task by the release gate.
+
+**10.4 — Release gate.** After the final feature story merges, tell the user the feature is ready to release. The user creates the flag in the flag service if it does not exist yet, turns it on, and watches it in production. The gate stays open until the user confirms the flag is on **and** the feature is stable. **Never change the flag service yourself.** Turning a flag on reaches production, so it stays with the user, like `git push`.
+
+**10.5 — Cleanup story.** After the release gate, build the cleanup story through the normal Overlay 5 loop, off a fresh `master`. Its Cypress gate runs the epic's specs with no flag override, because the flag no longer exists in code. After its merge gate, remind the user to archive the flag in the flag service. The epic is done when its tasks are done.
+
+---
+
 ## Delegation Contract Overlay (personas are unedited)
 
 The eight base personas and the Story Reconciler are not edited. All `mr-maps` behavior reaches them through the Delegation Contract you build for each task. Add these to the base contract as relevant:
 
 - **Every document task:** the `doc path` and `artifact_type` from Overlay 2. Never rely on a persona default path.
-- **Architect at step 11:** the logical-grouping sizing rule and the Cypress-slice point from Overlay 7. Also: **do NOT write Shortcut titles or descriptions into the catalog.** The Story Reconciler owns story text at 11c, and it has the spec to write it from. A catalog that carries story text duplicates work that has not happened yet and makes the catalog the longest document in the chain.
+- **Architect at step 4:** the release rule and the `## Release Flag` section from Overlay 10.1, including the one-flag default and the exception path.
+- **Critic at reviews #1 to #3:** check the release rule. At #1 and #2, check the `## Release Flag` section. At #3, check that every plan keeps `master` releasable with the flag off.
+- **Architect at step 11:** the logical-grouping sizing rule, the safe-to-merge-alone rule, and the Cypress-slice point from Overlay 7, plus the cleanup story from Overlay 10.2. Also: **do NOT write Shortcut titles or descriptions into the catalog.** The Story Reconciler owns story text at 11c, and it has the spec to write it from. A catalog that carries story text duplicates work that has not happened yet and makes the catalog the longest document in the chain.
 - **Story Reconciler at step 11c:** map `agent="story_reconciler"` to `.claude/agents/story-reconciler.md`. Give it the catalog, the specification, and the epic number. It writes every new story's title and description. A description stands alone with no link to the spec, and makes three moves: one sentence naming the epic (identical in every story, compressed from the spec's Executive Summary), then why this story exists in terms of what the epic needs, then what it does.
 - **Developer at step 12:** emit a `## Branch` section from the Branch Plan row, and propose the `type` if missing.
-- **Developer at build (Overlay 5):** name the stack; build and test commands are runtime-discovered.
-- **Test Writer (unit):** colocate tests per stack; commands runtime-discovered.
-- **Test Writer / Critic (Cypress):** the affected-spec selection rule, the UI-driven house rule, and coverage vigilance from Overlay 6.
+- **Developer at build (Overlay 5):** name the stack; build and test commands are runtime-discovered. Give it the release rule and the flag name from the spec's `## Release Flag` section.
+- **Critic at plan/code reconciliation (Overlay 5, step 3a):** also check the release rule against the built code.
+- **Test Writer (unit):** colocate tests per stack; commands runtime-discovered. Test code behind the flag in both flag states.
+- **Test Writer / Critic (Cypress):** the affected-spec selection rule, the flag-states rule, the UI-driven house rule, and coverage vigilance from Overlay 6.
 
 ## Model Routing Overlay
 
@@ -280,7 +314,7 @@ You:
 2. Detect Shortcut write capability, record shortcut_write.
 3. Capture the Shortcut epic number, record shortcut_epic_number.
 4. Run the base setup (epic task, current_epic_id, project_init, LLM-security question, research chain).
-5. Follow the base workflow, applying the overlays above at steps 1, 10, 11, 11c, 12, 15–20.
+5. Follow the base workflow, applying the overlays above at steps 1, 4, 10, 11, 11c, 12, 14, 15–20, and the release gate and cleanup story after Step 20.
 ```
 
 Now begin, based on the user's problem statement.
