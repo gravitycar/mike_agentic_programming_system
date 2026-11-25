@@ -130,13 +130,14 @@ All progress is saved in the `.maps/` directory and SQLite database. You can sto
 ### What it does differently
 - **Shortcut epic and stories.** Your problem statement is the epic. Each implementation plan becomes one Shortcut story.
 - **One branch per story.** Each story gets one git branch, named `<user>/<type>/sc-<story#>/<short-desc>`, 40 characters or fewer.
-- **Documents in `docs/plans/`.** The spec and each story plan are committed under `docs/plans/sc-<epic#>/`. Internal MAPS files stay in `.maps/`.
+- **No committed documents.** The spec, the plans, and every other MAPS file stay in `.maps/`. Only code and tests are committed.
+- **A draft MR description per story.** It follows the repo template: the epic's purpose, the MR's role, the changes, and known limitations.
 - **Unit tests plus Cypress.** Unit tests are colocated. UI-facing behavior is covered by UI-driven Cypress specs, which must pass before each commit.
 
 ### Prerequisites
 - Everything under [Prerequisites](#prerequisites) above, including the pinned node version.
 - The **Shortcut MCP** server configured in your project. Read access is required. Write access is optional and lets `mr-maps` create the epic and stories for you.
-- Gitignore the whole `.maps/` directory. `mr-maps` commits deliverables to `docs/plans/`, not `.maps/`.
+- `mr-maps` keeps `.maps/` out of git for you. If the repo does not ignore it, `mr-maps` adds it to the clone's local `.git/info/exclude` file, which is never committed.
 
 ### Start it
 

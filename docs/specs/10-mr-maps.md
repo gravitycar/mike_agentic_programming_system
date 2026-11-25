@@ -16,7 +16,7 @@
 MetaRouter conventions this spec is built on (validated against the `ion` repo as the reference; they apply to any MetaRouter repo, whose specifics `mr-maps` discovers at runtime):
 - **Shortcut** tracks work as epics and stories. Branch rule (each MetaRouter repo documents it, e.g. `ion/packages/CLAUDE.md`): `<user>/<type>/sc-<number>/<short-desc>`, **≤40 characters**, `type` ∈ {`feat`, `fix`, `refactor`, `perf`, `docs`, `style`, `test`}. **One story ↔ one branch**, strictly. Epics do not get branches.
 - Guideline (soft): keep a branch's diff under **30 changed files and 500 changed lines**.
-- Existing documentation convention: one **flat** directory per epic, e.g. `docs/plans/sc-40464/`, holding the epic spec and one plan file per story named `sc-<story#>_<slug>.md`, each plan carrying a `## Branch` section.
+- MR descriptions follow each repo's template (`ion` and `roost`: `.gitlab/merge_request_templates/default.md`), with a "Description, motivation, and context" section and a "Known limitations, trade-offs, and technical debt" section.
 - Testing has exactly **two tiers**: colocated **unit tests** (jest `*.test.ts|tsx|js`; Go `*_test.go`) and **Cypress E2E** specs in `cypress/integration/`. There is no classic service-level integration tier; "integration test" at MetaRouter means Cypress.
 
 ## Guiding Principles
@@ -25,7 +25,7 @@ MetaRouter conventions this spec is built on (validated against the `ion` repo a
 3. **Determinism where it counts.** Semantic matching (catalog item ↔ Shortcut story) is delegated to a persona; the *result* is recorded deterministically in the database. Path and branch-name construction is deterministic and command-owned.
 4. **Cypress is the regression backstop.** Cypress specs are MetaRouter's most important tool for catching regressions; coverage of UI-validatable behavior is non-negotiable, and no commit is made until the relevant Cypress specs pass.
 5. **MAPS proposes; the human controls git's outward edge.** `mr-maps` creates branches and local commits; pushing and MR creation stay with the user.
-6. **The spec earns review before code exists.** Colleagues review and approve the spec before catalog work starts. Each story's plan is then reviewed with its code, once, in the story's MR.
+6. **Colleagues review code, not documents.** The spec and the plans are working material for MAPS and the user, and are never committed. Each MR carries a short description that gives reviewers the context they need.
 7. **Every merge keeps `master` releasable.** Each story merges to `master` dark, behind one release flag or inert by design. Stories merge one at a time and never stack. The flag turns the feature on after the last feature story merges.
 
 ## When to Use `mr-maps`
@@ -40,51 +40,54 @@ The separation is near-total:
 ## Workflow
 The 20-step workflow of [07-workflow.md](07-workflow.md) is preserved. The deltas:
 
-- **Step 1 (User + Orchestrator) — capture the Shortcut epic.** The user describes the problem (the epic). The orchestrator obtains the epic's Shortcut number and records it: `config_set key="shortcut_epic_number" value="<n>"`. If a **write-capable** Shortcut MCP is available and the epic does not yet exist, the orchestrator creates it; otherwise the user creates the epic in Shortcut and supplies the number. The epic number determines the document directory (`docs/plans/sc-<n>/`).
-- **Steps 2–10 — unchanged in behavior, changed in storage.** Research goes to `.maps/` (internal). The specification is authored at step 4 and stored at `docs/plans/sc-<n>/<spec-name>.md`. It carries a `## Release Flag` section (see [Release Flag](#release-flag)). Critical reviews stay in `.maps/`. **Spec sign-off (step 10):** the spec is approved and written to disk. Right after sign-off, a new **Spec Review Gate** gives the spec its own Shortcut story and branch, commits the spec there, and pauses for peer review before step 11 begins (see [Spec Review Gate](#spec-review-gate)).
+- **Step 1 (User + Orchestrator) — capture the Shortcut epic.** The user describes the problem (the epic). The orchestrator obtains the epic's Shortcut number and records it: `config_set key="shortcut_epic_number" value="<n>"`. If a **write-capable** Shortcut MCP is available and the epic does not yet exist, the orchestrator creates it; otherwise the user creates the epic in Shortcut and supplies the number. Step 11c uses the epic number to find and create the epic's stories.
+- **Steps 2–10 — unchanged, except for the commit.** Every document stays in `.maps/`. The specification carries a `## Release Flag` section (see [Release Flag](#release-flag)). **Spec sign-off (step 10)** records the user's approval but makes no commit (see [Document Storage](#document-storage)).
 - **Steps 10a–d / 14a–d (LLM Security Auditor) — unchanged, conditional.** MetaRouter repos are generally not LLM-integrated, so these usually skip, exactly as in stock `/maps`.
 - **Step 11 (Architect) — build catalog, sized to a logical grouping.** Each catalog item is sized as one Shortcut story, grouped by component or package rather than by a file/line ceiling (see [Story Sizing](#story-sizing-guideline)). The last item is always the cleanup story that retires the release flag.
 - **Step 11c (Story Reconciler) — NEW.** Runs after the base's catalog review (11a) and catalog approval (11b), which `mr-maps` inherits unchanged. Reconcile catalog items against existing Shortcut stories under the epic; obtain a story number for every item. Nothing is filed in Shortcut from an unreviewed catalog. See [Shortcut Integration](#shortcut-integration-and-the-story-reconciler).
-- **Step 12 (Developer) — write plans, one per story.** Each plan is stored at `docs/plans/sc-<n>/sc-<story#>_<slug>.md` and carries a `## Branch` section (base branch, branch name, type, slug). See [Git Branch Strategy](#git-branch-strategy).
+- **Step 12 (Developer) — write plans, one per story.** Each plan is stored at `.maps/docs/<epic-slug>/plans/sc-<story#>_<slug>.md` and carries a `## Branch` section (base branch, branch name, type, slug). See [Git Branch Strategy](#git-branch-strategy).
 - **Steps 13–14 — unchanged.** Critic review #3 + user resolution. Story-split proposals from sizing surface here for approval.
-- **Steps 15–19 — RESTRUCTURED into the per-story build loop.** Instead of "build everything, then unit-test, then integration-test," each story branches off a fresh `master`, is built, tested, and committed with its plan, then waits at a merge gate until the user merges its MR. See [Git Branch Strategy](#git-branch-strategy) and [Testing Model](#testing-model).
+- **Steps 15–19 — RESTRUCTURED into the per-story build loop.** Instead of "build everything, then unit-test, then integration-test," each story branches off a fresh `master`, is built, tested, and committed, gets a draft MR description, then waits at a merge gate until the user merges its MR. See [Git Branch Strategy](#git-branch-strategy) and [Testing Model](#testing-model).
 - **Step 20 (Verifier), unchanged in guarantee.** Every acceptance criterion is verified. **UI-validatable criteria must be backed by a passing UI-driven Cypress spec.** Step 20 runs with the flag on, on the final feature story's branch, which holds the whole epic (see [Acceptance verification](#acceptance-verification)).
 - **After Step 20 — release gate and cleanup story.** The user turns the flag on and confirms the feature is stable. Then the cleanup story removes the flag (see [Release Flag](#release-flag)).
 
 ## Document Storage
-Two homes, split by whether the document is a MetaRouter deliverable or MAPS's internal scaffolding:
+Every MAPS document lives in `.maps/docs/<epic-slug>/`, as in stock `/maps`, and **none is committed**. That covers research, the spec, the decision record, the catalog, the reconciliation proposal, the story plans, critical reviews, test logs, security-audit reports, and MR description drafts.
 
-- **Committed to git**, under `docs/plans/sc-<epic#>/` (flat, matching the existing `sc-40464/` convention):
-  - the epic **specification**, `<spec-name>.md`;
-  - each **story plan**, `sc-<story#>_<slug>.md`.
-- **Internal, kept in `.maps/`** (gitignored): research summaries, the implementation **catalog**, critical reviews, the **decision record**, test-result logs, security-audit reports.
+**Why.** Through v0.1.5 the spec and the plans were committed, so colleagues reviewed them in the MR like code. Reviewers then flagged every gap between a document and the code, and each code change forced a document update. That cost a round of edits every time and gave no benefit to anyone who uses the product. The documents still do their job for MAPS: the Critic, the Developer, and the Verifier read them. Colleagues review code and tests, with the MR description as context (see [MR Description](#mr-description)).
 
-The decision record is the one document whose home differs from the spec it accompanies. The spec is committed; its `decisions.md` is not. The Architect derives the record's path from the spec's `doc path` by default, which lands it in `docs/plans/` here, so `mr-maps` passes its path explicitly.
+**Keeping `.maps/` out of git.** At setup, `mr-maps` checks `git check-ignore -q .maps/`. If `.maps/` is not ignored, it appends `.maps/` to the clone's local exclude file, `$(git rev-parse --git-common-dir)/info/exclude`. Git never commits that file, and every worktree of the clone shares it. `mr-maps` never edits the repo's `.gitignore`, because that edit would itself need a commit. Before each story commit, `mr-maps` also checks that no staged path is under `.maps/`.
+
+**No sign-off commit.** Stock `/maps` commits the spec at step 10. `mr-maps` records the sign-off without a commit.
 
 Mechanics (no persona change, no server change):
-- The MCP server stores `file_path` verbatim; document lookup is via the `artifacts` table, so a split home is transparent — each document is findable at its registered path regardless of tree.
-- The `mr-maps` command supplies **explicit input and output paths in every delegation contract**, so no persona ever falls back to its stock `.maps/docs/<epic-slug>/...` default. Relying on the persona default is prohibited in `mr-maps`.
+- The MCP server stores `file_path` verbatim, and document lookup is via the `artifacts` table.
+- The `mr-maps` command supplies **explicit output paths in every delegation contract**. The plan and MR-description file names carry the story number, which no persona default knows.
 
-## Spec Review Gate
-The spec is the highest-leverage place to catch a fault, because it drives every plan that follows: a fault caught in the spec is cheaper than the same fault caught in a plan, which is cheaper still than catching it in code. Right after sign-off (step 10), `mr-maps` gives the spec its own Shortcut story and branch, separate from every catalog-item story, so colleagues review it in isolation before any catalog or plan work begins.
+## MR Description
+`mr-maps` never opens an MR, so after each story's commit it hands the user a draft MR description and a proposed title. The Developer writes it on `sonnet`, from the spec's Executive Summary, the story, its plan, the step 15a notes, the branch diff, the release flag name, and the repo's MR template.
 
-**Creating the spec story.** The same read/create pattern already used for the epic (step 1): if `shortcut_write` is enabled, create a story under the epic and read back its number; otherwise ask the user for the number, or ask them to create it in Shortcut and report it back. It is never assigned earlier than sign-off — the spec can still change during critical review, and there is no reason to file a story for content that might be revised.
+**Format.** The draft fills the repo's MR template. For `ion` and `roost`, the "Description, motivation, and context" section holds:
+1. the Shortcut story link;
+2. the epic's purpose, in **two sentences at most**, the same in every story of the epic, and left out when the story has no epic;
+3. this MR's role in the epic, in **two sentences at most**, naming the release flag when the change is behind it;
+4. a bullet list of what changed, as a reviewer sees it in the diff.
 
-**Linking it.** `task_update` on the step-4 specification task's `shortcut_story_id`. This is the same nullable column used for catalog items, anchored here on the specification task instead of a plan task, because the spec has no catalog item and no plan/implement pair.
+The "Known limitations, trade-offs, and technical debt" section lists each item with its tracking story, or `N/A`. An item with no story yet is marked `(needs a story)`, so the user files one before opening the MR. The items come from the plan, the build summaries, the step 15a notes, Critic findings the user declined, and release-flag exceptions.
 
-**Branch and commit.** `<user>/docs/sc-<spec-story#>/<slug>`, off `master`, ≤40 characters, the same construction as every other branch name (see [Git Branch Strategy](#git-branch-strategy)). `type` is always `docs`, not proposed or asked. `<slug>` is the spec's kebab-case name. The commit holds only the spec file — no catalog, no plans, no code exist yet.
+**Rules.** No exposition: no background, no history, no account of how MAPS produced the code. No citation of MAPS documents or their IDs (AC-3, D-2), which reviewers cannot see. The title follows the repo's `type(scope): subject` format, with `type` from the Branch Plan.
 
-**The gate.** `mr-maps` tells the user the branch is ready to push for peer review, creates a gate task (`type="human-review"`, `agent="user"`), and waits. Step 11 (catalog) does not start until the user confirms colleagues approved it.
+**Timing.** For each story, the draft follows the commit. For the final feature story, it follows Step 20, so its change list includes any Step 20 fixes.
 
-**Boundary, unchanged.** `mr-maps` commits locally only. Pushing this branch, opening its MR, and reporting the review's outcome all stay with the user.
+**No review of the spec by colleagues.** The v0.1.3 Spec Review Gate is removed. It cost a full review round, often days, before any code existed, and it blocked every story in the epic. The user's own spec review at steps 6 to 10 stays.
 
 ## Shortcut Integration and the Story Reconciler
-This section covers stories for catalog items. The spec has its own story, created separately (see [Spec Review Gate](#spec-review-gate) above) — the Reconciler never touches it, and it never appears in the catalog.
+This section covers stories for catalog items.
 
-Both the document directory (`sc-<epic#>`) and every branch name (`sc-<story#>`) need real Shortcut numbers. The epic number is captured at step 1. Catalog-item story numbers are assigned at **step 11c**, after the catalog is approved (never at first draft — so cut/merged items don't leave orphaned stories). The spec story's number is assigned separately, right after step 10, since it has no catalog item to wait on.
+Every branch name (`sc-<story#>`) needs a real Shortcut number. The epic number is captured at step 1. Catalog-item story numbers are assigned at **step 11c**, after the catalog is approved (never at first draft — so cut/merged items don't leave orphaned stories).
 
 ### Deterministic linkage
-A nullable **`shortcut_story_id`** column is added to the `tasks` table. It is the authoritative story link for two cases: anchored on the `plan` task for a catalog item (which is the database's representation of a catalog item — items are not rows until plan tasks are created), and anchored on the `specification` task for the spec's own story. "This item still needs a story" is then a deterministic query: *plan tasks with `shortcut_story_id IS NULL`.* The column is additive and backward-compatible; stock `/maps` leaves it NULL and never reads it. No story-side key (external ID / label) is written in v1.
+A nullable **`shortcut_story_id`** column is added to the `tasks` table. It is the authoritative story link, anchored on the `plan` task for a catalog item (which is the database's representation of a catalog item — items are not rows until plan tasks are created). "This item still needs a story" is then a deterministic query: *plan tasks with `shortcut_story_id IS NULL`.* The column is additive and backward-compatible; stock `/maps` leaves it NULL and never reads it. No story-side key (external ID / label) is written in v1.
 
 ### Story text ownership
 The **Story Reconciler owns every Shortcut story's title and description**, written at step 11c. The catalog carries neither.
@@ -154,16 +157,15 @@ At step 14, the orchestrator creates one **merge gate** per story (`type="human-
 4. **Unit tests.** Write and run, **colocated** per stack (jest next to source; Go `*_test.go`) (Test Writer). Code behind the flag is tested in both flag states.
 5. **Cypress gate.** Run the relevant Cypress specs in both flag states; all must pass (see [Testing Model](#testing-model)).
 6. **Triage/fix loop** on any failure: Critic → Reviser / Developer / Test Writer → retest. Hard limit: **5 iterations**, then stop and ask the user.
-7. **Commit** the plan, code, and tests on the branch (commit message references `sc-<story#>`). Colleagues review the plan and the code together, once, in the story's MR.
-8. **Merge gate.** The user pushes, gets the MR approved, and merges it. The gate stays open until the user confirms the merge.
+7. **Commit** the code and tests on the branch (commit message references `sc-<story#>`). No MAPS document is committed.
+8. **MR description.** The Developer drafts it (see [MR Description](#mr-description)).
+9. **Merge gate.** The user pushes, opens the MR with the draft description, gets it approved, and merges it. The gate stays open until the user confirms the merge.
 
 Code-undo before rebuild (`git checkout` + delete new files) applies within the loop, scoped to the branch, as in stock `/maps`.
 
 **Open merge gates do not stop the loop.** While a merge gate is open, the orchestrator builds any other story whose blockers are all done. A story that depends on an unmerged story waits. The user may have several open MRs at once, but never a stacked one.
 
-The per-story **plan review gate** of v0.1.3 is removed. With a merge gate on every story, it meant two colleague review rounds per story. The spec review gate stays, so colleagues still review the design before any code exists.
-
-Direct-to-`master` doc commits are not used. Epics have no branch, so there is never an epic-level document to commit. The spec is committed on its own dedicated branch at the [Spec Review Gate](#spec-review-gate), and every plan is committed with its story's code on that story's branch.
+The per-story **plan review gate** of v0.1.3 is removed. With a merge gate on every story, it meant two colleague review rounds per story.
 
 ### Boundary
 `mr-maps` makes **local commits only**. It never pushes; the **user controls `git push`, MR creation, and merging**. This keeps MAPS out of irreversible outward-facing actions and matches MetaRouter's one-story-one-MR review flow.
@@ -243,16 +245,17 @@ Base routing applies unchanged. See [05-orchestrator.md](05-orchestrator.md#mode
 |------|-------|-------|-----|
 | 11c | Story Reconciler | `sonnet` | It matches catalog items to existing stories. Classification, not design. |
 | Per-story build loop | Developer (build), Test Writer (unit + Cypress), Critic (triage), Reviser | `sonnet` | The loop replaces base steps 15-19, which already route to `sonnet`. |
+| Per-story build loop | Developer (MR description) | `sonnet` | It summarizes a finished diff. No design work. |
 
 ## Requirements
 - Implemented as a Claude Code custom command (`.claude/commands/mr-maps.md`); Claude Code is the orchestrator, as in `/maps`. Stock `/maps` and `/maps-lite` are not modified.
 - Adds exactly one new persona, `.claude/agents/story-reconciler.md` (advisory: proposes reconciliation; the command executes side effects). The eight existing personas are unchanged; all MetaRouter behavior reaches them through the delegation contract.
 - Adds one nullable `shortcut_story_id` column to `tasks` (additive, backward-compatible); no other schema change and no new MCP tools.
 - Captures the Shortcut epic number at step 1 (`config_set shortcut_epic_number`); assigns story numbers at step 11c via the Story Reconciler; records each on its plan task's `shortcut_story_id`.
-- Gives the spec its own Shortcut story and branch, created right after sign-off (step 10) via the same read/create pattern as the epic; linked via `shortcut_story_id` on the specification task; committed alone and paused for peer review before catalog work (step 11) begins.
 - Detects whether a write-capable Shortcut MCP is present; creates epic/stories automatically when it is, and falls back to a manual-creation gate + re-read + link when only a read-only MCP is available. Human confirmation precedes creation in both modes.
-- Stores committed docs under `docs/plans/sc-<epic#>/` (flat: `<spec-name>.md`, `sc-<story#>_<slug>.md`); keeps research, catalog, reviews, and test logs in gitignored `.maps/`. Every delegation carries explicit input/output paths.
-- Builds via the per-story loop: one branch per story (`<user>/<type>/sc-<story#>/<short-desc>`, ≤40 chars; type proposed by Developer, else asked); every story off a fresh `master`, never stacked; a dependent story starts only after its dependencies merge; unit tests colocated; Cypress gate (targeted, UI-driven, both flag states) passing before commit; plan, code, and tests committed together; a merge gate after each commit; local commits only.
+- Keeps every MAPS document in `.maps/docs/<epic-slug>/` and commits none of them. Excludes `.maps/` through the clone's local `info/exclude` file when the repo does not already ignore it. Every delegation carries explicit output paths.
+- Drafts an MR description and title for each story in the repo's template: the epic's purpose and the MR's role in two sentences at most each, a list of changes, and the known limitations with their tracking stories.
+- Builds via the per-story loop: one branch per story (`<user>/<type>/sc-<story#>/<short-desc>`, ≤40 chars; type proposed by Developer, else asked); every story off a fresh `master`, never stacked; a dependent story starts only after its dependencies merge; unit tests colocated; Cypress gate (targeted, UI-driven, both flag states) passing before commit; code and tests committed together, with no documents; a draft MR description after each commit; a merge gate after the draft; local commits only.
 - Puts every epic behind one release flag by default. Each merge leaves `master` releasable with the flag off; code that cannot read the flag is inert, and exceptions go to the user. The user turns the flag on at a release gate, and a cleanup story retires the flag in the same run.
 - Sizes each story to a logical grouping (a component or package), not a file/line ceiling, overriding the base's numeric ceiling in `CATALOG_GUIDELINES.md` for `mr-maps` only, to keep review rounds per epic low. The Architect proposes story splits and merges at catalog sizing (step 11); the user approves them in catalog and plan review (steps 11b, 13–14).
 - Human review steps pause the workflow until the user responds, in the conversation.
@@ -269,22 +272,25 @@ Base routing applies unchanged. See [05-orchestrator.md](05-orchestrator.md#mode
 - External: the **Shortcut MCP server(s)** — a read-capable server is required at step 11c; a write-capable server is optional (enables auto-creation of epic/stories).
 
 ## Open Questions
-1. ~~Where do MetaRouter documents live, and what stays internal?~~ **Resolved** — committed spec + story plans under flat `docs/plans/sc-<epic#>/`; research/catalog/reviews/test-logs in gitignored `.maps/`.
+1. ~~Where do MetaRouter documents live, and what stays internal?~~ **Resolved** — committed spec + story plans under flat `docs/plans/sc-<epic#>/`; research/catalog/reviews/test-logs in gitignored `.maps/`. *(Superseded by #17: no document is committed.)*
 2. ~~How are Shortcut numbers captured and linked, given empty / partial / full epics and a possibly read-only MCP?~~ **Resolved** — epic number at step 1; story numbers at step 11c via the advisory Story Reconciler (classify matched / needs-creation / extra); deterministic link via `shortcut_story_id` on the plan task; human-gated creation with a read-only manual-creation fallback that re-reads and links.
 3. ~~How does one-story-one-branch map onto MAPS?~~ **Resolved** — one catalog item = one plan = one `implement` task = one branch; deterministic branch naming with a Developer-proposed `type`; independent stories off `master`, dependents stacked; per-story build/test/commit loop; local commits only. *(Base-branch part superseded by #11: no stacking.)*
 4. ~~How are MetaRouter repos tested, and how does that shape the workflow?~~ **Resolved** — two tiers only (validated against `ion`); colocated unit tests + UI-driven Cypress on the last-enabling branch; targeted in-session Cypress run gating every commit, full suite in CI; coverage vigilance for UI-validatable behavior. `mr-maps` discovers the specific repo's test setup at runtime.
 5. ~~How is the 30-file / 500-line guideline enforced without over-splitting on test volume?~~ **Resolved, superseded by #10** — the numeric ceiling no longer applies in `mr-maps`; see [Story Sizing Guideline](#story-sizing-guideline).
-6. ~~Where and when are epic-level docs committed, given epics have no branch and the spec is signed off before any story branch exists?~~ **Resolved, superseded by #9** — each story plan file commits on its own story's branch; the spec no longer rides on a catalog-item story's branch, but gets a dedicated spec story and branch of its own (see [Spec Review Gate](#spec-review-gate)). No direct-to-`master` doc commits.
+6. ~~Where and when are epic-level docs committed, given epics have no branch and the spec is signed off before any story branch exists?~~ **Resolved, superseded by #9** — each story plan file commits on its own story's branch; the spec no longer rides on a catalog-item story's branch, but gets a dedicated spec story and branch of its own. No direct-to-`master` doc commits. *(Superseded by #17 and #18: no document is committed, and the spec has no story or branch of its own.)*
 7. ~~What is the canonical "bring up the stack + run Cypress" command?~~ **Resolved** — not pinned here; the orchestrator discovers the stack-up and Cypress commands at runtime from the repo. Encoding them in the spec would only risk staleness and would not transfer between repos.
 8. ~~How are Cypress specs handled when their enablers are genuinely independent?~~ **Resolved** — no throwaway integration branch (it could run but not *commit* the spec green on the MR branch, so it fails the commit gate). The Cypress-carrying story stacks transitively on every story its spec needs; independent enablers are **linearized** into a stack, accepting the imposed merge order as the cost of a spec spanning them. *(Superseded by #11: the Cypress-carrying story waits for its enablers to merge.)*
-9. ~~How do the spec and the plans reach colleagues for review without overwhelming them with everything at once?~~ **Resolved** — the spec gets its own Shortcut story and branch, committed alone and reviewed before catalog work starts. Each story's plan is committed on its own branch and reviewed before that story's code is built. Review always trails by exactly one artifact, at whatever pace the user's colleagues want — including reviewing a prior story's built code before approving the next plan — because stories build strictly one at a time in dependency order. *(Per-story plan gate removed by #16.)*
+9. ~~How do the spec and the plans reach colleagues for review without overwhelming them with everything at once?~~ **Resolved** — the spec gets its own Shortcut story and branch, committed alone and reviewed before catalog work starts. Each story's plan is committed on its own branch and reviewed before that story's code is built. Review always trails by exactly one artifact, at whatever pace the user's colleagues want — including reviewing a prior story's built code before approving the next plan — because stories build strictly one at a time in dependency order. *(Per-story plan gate removed by #16. Spec review by colleagues removed by #18.)*
 10. ~~How should `mr-maps` size stories now that the numeric ceiling is gone, without inviting either one story per epic or too many small ones?~~ **Resolved** — size each story to a logical grouping (a component or a package). Split across a genuine architectural boundary, not by size; keep work together when in doubt. The original reason, short stacks, no longer applies after #11. The rule stays to keep review rounds per epic low (#14). See [Story Sizing Guideline](#story-sizing-guideline).
 11. ~~Stacked MRs wait for each other and force rebases and pipeline re-runs on every merge. How can stories merge one at a time?~~ **Resolved** — every story branches off a fresh `master` and merges dark behind a release flag. A dependent story starts after its dependencies merge. Supersedes the stacking parts of #3 and #8. See [Release Flag](#release-flag).
 12. ~~In `ion`, only the front end can read flags. How do backend stories stay dark?~~ **Resolved** — backend changes must be inert by default. A change that cannot be inert is an exception the Architect raises in the spec and the user decides.
 13. ~~How many release flags per epic?~~ **Resolved** — one by default. A second flag only for a part that must turn on or roll back separately, with the reason in the spec.
 14. ~~May an independent story build while an earlier story's MR waits to merge? And how should stories be sized once stacking is gone?~~ **Resolved** — yes, independent stories may build while an earlier MR waits; dependent ones wait. Logical-grouping sizing stays, for fewer review rounds per epic.
 15. ~~Who removes the flag after release, and when?~~ **Resolved** — a cleanup story, the last catalog item, built in the same run after the user confirms at the release gate that the flag is on and the feature is stable.
-16. ~~With a merge gate on every story, is the per-story plan review gate still needed?~~ **Resolved** — no. The plan is committed with its code and reviewed once in the story's MR. The spec review gate stays. Revises #9.
+16. ~~With a merge gate on every story, is the per-story plan review gate still needed?~~ **Resolved** — no. The plan is committed with its code and reviewed once in the story's MR. The spec review gate stays. Revises #9. *(Superseded by #17 and #18: plans are not committed, and the spec review gate is removed.)*
+17. ~~Should the spec and the plans be committed?~~ **Resolved** — no. Reviewers flagged every gap between a committed document and the code, so each code change forced a document update, with no benefit in practice. Every document stays in `.maps/`, excluded through the clone's local `info/exclude` file. Colleagues review code and tests, with a short MR description as context. See [Document Storage](#document-storage) and [MR Description](#mr-description).
+18. ~~Should colleagues review the spec before code exists?~~ **Resolved** — no. The Spec Review Gate cost a full review round, often days, before any code existed, and blocked the whole epic. The user's own spec review at steps 6 to 10 stays.
+19. ~~What goes in an MR description?~~ **Resolved** — the repo's template, filled with the story link, the epic's purpose and the MR's role in two sentences at most each, a list of changes, and the known limitations with their tracking stories. No exposition. See [MR Description](#mr-description).
 
 ## Version History
 | Version | Date | Author | Changes |
@@ -295,3 +301,4 @@ Base routing applies unchanged. See [05-orchestrator.md](05-orchestrator.md#mode
 | 0.1.3 | 2026-09-29 | Mike Andersen | Added the Spec Review Gate (dedicated Shortcut story/branch for the spec, committed and reviewed before catalog work) and the per-story plan review gate (plan committed and reviewed before that story's code is built). Revises decision #6's document-commit timing: the spec no longer rides on the first story branch, and each plan commit is separated from its story's code commit by a human gate. |
 | 0.1.4 | 2026-10-08 | Mike Andersen | Replaced the numeric story-sizing ceiling with a logical-grouping rule (component or package), to keep CI pipeline cascades short across stacked story branches. Reverses `mr-maps`'s earlier inheritance of the base numeric ceiling; stock `/maps` keeps it unchanged. |
 | 0.1.5 | 2026-11-18 | Mike Andersen | Replaced stacking with flag-gated, merge-one-at-a-time stories: every story off a fresh `master`, a merge gate per story, one release flag per epic, inert backend changes with a user-decided exception path, Step 20 on the final feature story's branch with the flag on, a release gate, and a cleanup story that retires the flag. Removed the per-story plan review gate and the linearized Cypress stack. Kept logical-grouping sizing, with fewer review rounds as its reason. Resolved open questions #11 to #16. |
+| 0.1.6 | 2026-11-25 | Mike Andersen | Stopped committing documents: the spec and the plans stay in `.maps/`, excluded through the clone's local `info/exclude` file, and step 10 makes no sign-off commit. Removed the Spec Review Gate and the spec story. Added a draft MR description per story in the repo's template. Resolved open questions #17 to #19. |

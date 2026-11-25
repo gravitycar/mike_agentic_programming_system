@@ -71,7 +71,7 @@ MAPS will:
 
 Before you start:
 - Confirm the Shortcut MCP server is connected (run `/mcp`).
-- Gitignore the whole `.maps/` directory. `mr-maps` commits its deliverables to `docs/plans/sc-<epic#>/`, not `.maps/`.
+- Nothing to ignore by hand. `mr-maps` adds `.maps/` to the clone's local `.git/info/exclude` file if the repo does not already ignore it.
 
 Then start it with a problem statement for a Shortcut epic:
 
