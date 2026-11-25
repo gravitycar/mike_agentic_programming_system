@@ -12,6 +12,10 @@ The system is **spec-driven**: it front-loads design decisions through iterative
 
 A lightweight variant, `/maps-lite`, for small changes and bug fixes is **specified** ([docs/specs/09-maps-lite.md](docs/specs/09-maps-lite.md)) but **not yet implemented** — the command, persona edits, and the full-`/maps` delegation retrofit are pending.
 
+A Step 0 Intake for `/maps`, which routes mechanical changes to a short Direct path, is **specified** ([docs/specs/11-intake.md](docs/specs/11-intake.md)) but **not yet implemented**.
+
+Item commits, a per-item code review loop, and a build-time question ladder are **specified** ([docs/specs/12-review-loop.md](docs/specs/12-review-loop.md)) but **not yet implemented**.
+
 ## Architecture
 
 ```
@@ -122,7 +126,9 @@ mike_agentic_programming_system/
         ├── 07-workflow.md             # 20-step workflow definition
         ├── 08-project-setup.md        # Setup script, portability
         ├── 09-maps-lite.md            # /maps-lite lightweight workflow (spec; impl pending)
-        └── 10-telemetry.md            # Sub-agent token/time telemetry
+        ├── 10-telemetry.md            # Sub-agent token/time telemetry
+        ├── 11-intake.md               # Step 0 Intake + Direct path (spec; impl pending)
+        └── 12-review-loop.md          # Item commits, code review loop, question ladder (spec; impl pending)
 ```
 
 ### Target project structure (produced by `maps-init.sh`)
@@ -172,6 +178,8 @@ Read these specs in order — later specs depend on earlier ones.
 | **08-project-setup.md** | Setup script and portability | `maps-init.sh`, `.mcp.json` merge, idempotent, Node.js + Claude Code prerequisites |
 | **09-maps-lite.md** | Lightweight `/maps` variant for small changes/bug fixes | Merged change brief, section-writing delegation contract, `question`-task confirmation gate, escalation, conditional Step 20 |
 | **10-telemetry.md** | Sub-agent token/time telemetry | `SubagentStop` hook, shared cross-project `~/.maps/telemetry.db`, `telemetry_report` tool |
+| **11-intake.md** | Step 0 Intake and the Direct path | Scope probe, four outcomes (Direct / Lite / Full / Nothing), Critic diff review, 2-iteration fix loop, escalation in place |
+| **12-review-loop.md** | Item commits, per-item build loop, code review loop, question ladder | `maps/<epic-slug>` work branch, `code-reviewer-metarouter` (optional), 3 review rounds, Developer judges findings, `NEEDS_ANSWER` climbs orchestrator → Researcher/Architect → user |
 
 ## Workflow Overview
 
