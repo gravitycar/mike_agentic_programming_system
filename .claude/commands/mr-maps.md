@@ -6,14 +6,15 @@ You are executing the `/mr-maps` command ("Mister Maps"), the MetaRouter variant
 
 Your base workflow is the stock `/maps` command at `.claude/commands/maps.md`. **Read that file first and follow it**, except where this overlay changes it. On every point this overlay addresses, this overlay is authoritative and supersedes the base.
 
-This overlay does not repeat the base. It changes seven areas:
+This overlay does not repeat the base. It changes eight areas:
 1. Document paths. Every MAPS document stays local under `.maps/`, and only code and tests are committed.
 2. Shortcut epic and story numbers, plus a new Story Reconciler step (11c). The base's catalog review (11a) and catalog approval (11b) are inherited unchanged and run before it.
-3. Git branches (one story, one branch, always off `master`) and a restructured per-story build loop that ends at a merge gate.
+3. Git branches (one story, one branch, always off `master`) in place of the base work branch, and a per-story version of the base build loop that ends at a merge gate.
 4. Testing (unit plus Cypress, no classic integration tier).
 5. Story sizing: a logical grouping (component or package), not a file/line ceiling. This overlay overrides the base here, to keep review rounds per epic low.
 6. A draft MR description for each story, for the user to paste (Overlay 9).
 7. A release flag: every story merges dark, and the flag turns the feature on after the last feature story merges (Overlay 10).
+8. Step 0 Intake: a Direct change becomes one story with its own branch, Cypress gate, and MR description (Overlay 11).
 
 Everything else is inherited unchanged from the base: the session-delegation model, critical review loops (3 iterations), the conditional LLM security review, human-review recording via a child, crash recovery, loop tracking, and error handling. The reference spec is `docs/specs/10-mr-maps.md`.
 
@@ -36,7 +37,7 @@ Everything else is inherited unchanged from the base: the session-delegation mod
 
 Follow the base "Initial Setup", with these additions.
 
-**Capture the Shortcut epic number.** Step 11c needs it to find and create the epic's stories.
+**Capture the Shortcut epic number (Full path only).** Run this after Step 0 Intake, once the user picks Full. Step 11c needs it to find and create the epic's stories. A Direct change has no epic of its own (Overlay 11).
 - If `shortcut_write` is `enabled` and the epic does not yet exist, create it in Shortcut and read back its number.
 - Otherwise, ask the user for the Shortcut epic number, or ask them to create the epic in Shortcut and give you the number.
 - Record it: `config_set key="shortcut_epic_number" value="<n>"`.
@@ -45,7 +46,7 @@ Follow the base "Initial Setup", with these additions.
 
 **Keep `.maps/` out of git.** Run `git check-ignore -q .maps/`. If it fails, append `.maps/` to the repo's local exclude file, `$(git rev-parse --git-common-dir)/info/exclude`. Git never commits that file, and every worktree of the clone shares it. Never edit the repo's `.gitignore` for this, because that edit would itself need a commit.
 
-The rest of setup (epic task, `current_epic_id`, the LLM-security question, the initial research chain) is unchanged.
+The rest of setup (epic task, `current_epic_id`, the code review skill check, Step 0 Intake, the LLM-security question, the initial research chain) is unchanged.
 
 ---
 
@@ -64,11 +65,15 @@ Use this table in every Delegation Contract in place of the base "Output Paths" 
 | 11 | Architect (catalog) | `.maps/docs/<epic-slug>/catalog/implementation-catalog.md` | `catalog` |
 | 11c | Story Reconciler | `.maps/docs/<epic-slug>/reconciliation/story-reconciliation.md` | `story_reconciliation` |
 | 12 | Developer (plan) | `.maps/docs/<epic-slug>/plans/sc-<story#>_<slug>.md` | `implementation_plan` |
+| 0 | Researcher (scope probe) | `.maps/docs/<epic-slug>/research/scope-probe.md` | `scope_probe` |
 | Overlay 9 | Developer (MR description) | `.maps/docs/<epic-slug>/mr/sc-<story#>.md` | `mr_description` |
+| 17r | Critic (review round) | `.maps/docs/<epic-slug>/reviews/code-review-sc-<story#>.md` (append one section per round) | `code_review_log` |
+| Ladder | Researcher or Architect | `.maps/docs/<epic-slug>/build/answers.md` (append one entry) | `answer_log` |
 
 Rules:
 - Always pass an explicit `doc path` in the Delegation Contract. The plan and MR-description names carry the story number, which no persona default knows.
 - Register every document with its real path. The artifacts table stays the source of truth for lookup.
+- The `code_review_log` and `answer_log` rows are append-only shared files. Follow the base rule: never pass them in a Delegation Contract block; name the path in the task description with an append instruction.
 - The `<spec-name>` is a short kebab-case name for the spec, for example `audit-log-triggers.md`. Choose it once at step 4 and reuse it.
 - **No sign-off commit at step 10.** The base commits the spec at sign-off. `mr-maps` skips that commit. It marks the sign-off task `done` and moves on to step 11.
 
@@ -134,24 +139,31 @@ Sizing follows the logical-grouping rule, not the base catalog guidelines; see O
 
 ---
 
-## Overlay 5 — Build and Test (supersedes base steps 15–19)
+## Overlay 5 — Build and Test (adapts the base Per-Item Build Loop, Steps 15 to 19)
 
-Replace the base "build everything, then unit-test, then integration-test" phase with a **per-story build loop**. Build stories in dependency order. One child at a time, as always.
+The base runs a per-item build loop on one `maps/<epic-slug>` work branch: build, reconcile, unit tests, triage, checkpoint commit, then the Code Review Loop (Step 17r), with the Question Ladder throughout. `mr-maps` inherits all of that, including the review loop, the Critic build-time rules, the Question Ladder, and Decided for You. It changes the branching, the testing, the wiring, and what happens after the review. There is no base integration test task (Steps 18 and 19); Cypress takes its place inside each story.
 
-**Gate tasks.** When you create the `implement` tasks (after plans are approved, as the base does at step 14), also create one **merge gate** per story: `task_create type="human-review" agent="user" name="Merge gate: sc-<story#>"`, blocked by that story's `implement` task. Wire the dependencies through the gates: a story that depends on story A is blocked by **A's merge gate**, not by A's `implement` task. Overlay 10 adds the release gate and the extra edges for the final feature story and the cleanup story.
+**Branches replace the work branch.** Each story builds on its own branch off a fresh `master`. Do not create `maps/<epic-slug>`.
+
+**Task wiring (replaces the base wiring after Step 14).** Per story, create only: the `implement` task, its Step 15a task (blocked by `implement`), and the **merge gate** (`task_create type="human-review" agent="user" name="Merge gate: sc-<story#>"`, blocked by the Step 15a task). A story that depends on story A is blocked by **A's merge gate**. Do **not** chain stories through each other, as the base does. Overlay 10 adds the release gate and the edges for the final feature story and the cleanup story.
+
+**The story hold.** Each story's merge gate is its **hold target**, in place of the base's next-item hold target. Every task you create for the story while its loop runs gets `blocker_add` onto the story's merge gate before you call `next_task` again: the unit test task (`Unit tests and Cypress: sc-<story#>`), triage and fix tasks, review rounds, ladder questions, the MR description task, and, for the final feature story, every Step 20 task. Create these tasks only when they are needed, as in the base. The base rules about never adding a `done` or `deferred` blocker apply.
+
+**One story's loop at a time.** Do not start a story while another story's loop, through its MR description, is unfinished. After that point the other story is committed on its own branch, so switching branches is safe. Independent stories have open `implement` tasks from the start, so `next_task` can return one in the middle of another story's loop. When it does, do not start it: take the unfinished story's next open task instead (`task_list status="open"`). Only `implement` tasks named for a catalog item start a story. `Fix: ...`, `Review fixes: ...`, and `MR description: ...` tasks never do.
 
 For each `implement` task, in dependency order:
 
-1. **Start from a fresh `master`.** Every merge gate this story depends on is `done`. Run `git fetch origin`, `git checkout master`, `git pull --ff-only`.
-2. **Create the branch** from the Branch Plan: `git checkout -b <branch> master`.
-3. **Build the story's code.** Delegate the Developer with this story's plan (`implementation_plan` for `sc-<story#>_<slug>.md`). The Delegation Contract carries the release rule from Overlay 10.
-3a. **Plan/code reconciliation.** Delegate the Critic for a single-pass reconciliation review of this story's plan against its just-built code (Step 15a in the base workflow). The Critic also checks the release rule: with the flag off, this branch changes no behavior a user or customer can see, apart from exceptions the user approved. Route `MATCH` / `PLAN STALE` / `CODE WRONG` / `ESCALATE` exactly as the base does. Do not proceed to step 4 until this resolves to `MATCH` or a correction has been applied.
-4. **Unit tests.** Delegate the Test Writer. Tests are **colocated** next to the source (for example jest `*.test.ts|tsx|js`; Go `*_test.go`). Code behind the flag is tested in both flag states. The build and test commands are **discovered at runtime** by the child, per stack. A MetaRouter repo may span several stacks (for example JavaScript/TypeScript services, React, Go). Name the stack in the Delegation Contract and let the child determine the commands from the repo.
+1. **Start from a fresh `master`.** Every merge gate this story depends on is `done`. Check that the working tree is clean, ignoring `.maps/`; if it is not, stop and ask the user. Run `git fetch origin`, `git checkout master`, `git pull --ff-only`.
+2. **Create the branch** from the Branch Plan: `git checkout -b <branch> master`. Record the item base for the review loop: `config_set key="item_base:<epic-id>:sc-<story#>" value="<master SHA>"`.
+3. **Build the story's code (Step 15).** Delegate the Developer with this story's plan (`implementation_plan` for `sc-<story#>_<slug>.md`). Keep its agent ID. The Delegation Contract carries the release rule from Overlay 10.
+3a. **Plan/code reconciliation (Step 15a).** As in the base. The Critic also checks the release rule: with the flag off, this branch changes no behavior a user or customer can see, apart from exceptions the user approved.
+4. **Unit tests (Step 16).** Once Step 15a resolves, create `Unit tests and Cypress: sc-<story#>` (type `test`, agent `test_writer`), hold it, and delegate the Test Writer. Tests are **colocated** next to the source (for example jest `*.test.ts|tsx|js`; Go `*_test.go`). Code behind the flag is tested in both flag states. The build and test commands are **discovered at runtime** by the child, per stack. A MetaRouter repo may span several stacks (for example JavaScript/TypeScript services, React, Go). Name the stack in the Delegation Contract and let the child determine the commands from the repo.
 5. **Cypress gate.** Run the relevant Cypress specs for this story (Overlay 6). All must pass.
-6. **Triage / fix loop** on any unit or Cypress failure. Same as the base steps 17/19: delegate Critic triage, route CODE / TEST / BOTH, undo code before rebuild (`git checkout` modified files, delete new files), retest. **Hard limit 5 iterations**, then stop and ask the user.
-7. **Commit** the story's code and tests on the branch. Never commit a MAPS document. Before the commit, check that no staged path is under `.maps/`. The commit message references the story, for example `sc-40469: <summary>`.
-8. **MR description.** Delegate the draft MR description (Overlay 9). For the final feature story, do this after Step 20 instead (Overlay 8).
-9. **Merge gate.** Tell the user the branch is ready to push, review, and merge. Show the MR description draft and its proposed title. The gate task stays open until the user confirms the MR has merged to `master`.
+6. **Triage / fix loop (Step 17)** on any unit or Cypress failure, as in the base, with a hard limit of 5 iterations per story.
+7. **Commit** the story's code and tests on the branch, as a base checkpoint commit. Never commit a MAPS document; check that no staged path is under `.maps/`. The commit message references the story, for example `sc-40469: <summary>`.
+8. **Code review loop (Step 17r).** As in the base, with the item base from step 2. Two additions: the Critic checks the release rule in every round, and the Test Writer reruns the affected Cypress specs, in both flag states, as well as the unit tests after each round's fixes.
+9. **MR description.** Delegate the draft MR description (Overlay 9). For the final feature story, do this after Step 20 instead (Overlay 8).
+10. **Merge gate.** Tell the user the branch is ready to push, review, and merge. Show the MR description draft, its proposed title, and the base's Decided for You list for this story. The gate task stays open until the user confirms the MR has merged to `master`.
 
 **Open merge gates do not stop the loop.** When the next task is an open merge gate, ask the user whether that MR has merged. If it has, mark the gate `done` and continue. If not, build any other `implement` task whose blockers are all `done`, and ask about the gate again when that story reaches its own merge gate. A story that depends on an unmerged story waits. If no other story can build, wait at the gate for the user. The user may therefore have several open MRs at once, but never a stacked one.
 
@@ -219,9 +231,13 @@ Split and merge proposals surface in the normal catalog and plan review (steps 1
 
 Keep the base Step 20 guarantee: every acceptance criterion is verified, and the Epic completes only when every AC task is `done`.
 
-**Where Step 20 runs.** On the **final feature story's** branch, after its commit (Overlay 5, step 7) and before its merge gate. Overlay 10 makes that story wait until every other feature story has merged, so its branch is `master` plus the last story, which is the whole epic. Run Step 20 there **with the release flag on**.
+**Where Step 20 runs.** On the **final feature story's** branch, after its code review loop (Overlay 5, step 8) and before its MR description and merge gate. Overlay 10 makes that story wait until every other feature story has merged, so its branch is `master` plus the last story, which is the whole epic. Run Step 20 there **with the release flag on**.
 
-**Fixes land in the final MR.** A Step 20 failure enters the base Step 20 fix loop (5 iterations) on this branch, even when the faulty code came from an earlier, already-merged story. Re-run the Cypress gate with the flag off and on after any fix. Draft this story's MR description (Overlay 9) only after Step 20 completes, so its change list includes the Step 20 fixes.
+**When Step 20 starts.** `mr-maps` has no base Step 19, so the base trigger "After Integration Tests Pass" never fires. Instead, when the final feature story's code review loop ends, materialize the AT and AC tasks as the base Step 20 setup describes. Add each AT and AC task as a blocker of the final feature story's merge gate (the story hold), so the merge gate cannot open before Step 20 is done.
+
+**Epic completion (overrides the base).** Also block the Epic by the cleanup story's merge gate (Overlay 10). The epic completes only after the cleanup story merges, not when the last AC is `done`. At completion there is no `maps/<epic-slug>` work branch to report, so leave that line out of the base completion message.
+
+**Fixes land in the final MR.** A Step 20 failure enters the base Step 20 fix loop (5 iterations) on this branch, even when the faulty code came from an earlier, already-merged story. Re-run the Cypress gate with the flag off and on after any fix, then make a checkpoint commit. Draft this story's MR description (Overlay 9) only after Step 20 completes, so its change list includes the Step 20 fixes.
 
 A UI-facing criterion is not verified without a passing UI-driven Cypress spec behind it, run with the flag on. The Verifier delegation, confidence labels, and completion rule are inherited from the base. The cleanup story (Overlay 10) builds after Step 20, and its own gates keep the verified behavior intact.
 
@@ -231,11 +247,12 @@ A UI-facing criterion is not verified without a passing UI-driven Cypress spec b
 
 `mr-maps` never opens an MR, so a draft description is its hand-off to the user. The spec and the plans are not committed (Overlay 2), so the description is all the context a reviewer gets. There is no separate review of the spec by colleagues. The user's own spec review at steps 6 to 10 stays.
 
-**9.1 — Delegate the draft.** After the story's commit (Overlay 5, step 8), delegate the Developer, on `sonnet`. Give it:
+**9.1 — Delegate the draft.** After the story's code review loop ends (Overlay 5, step 8), create a task (`type="implement"`, `agent="developer"`, `name="MR description: sc-<story#>"`) and delegate the Developer, on `sonnet`. Give it:
 - the spec's Executive Summary;
 - the epic sentence from the story's Shortcut description (written at 11c);
 - the story's Shortcut title and number;
 - the story's plan, and the Critic's reconciliation notes from step 3a;
+- the story's code review log, for the findings the Developer declined;
 - the branch diff, `git diff master...HEAD`;
 - the release flag name, from the spec's `## Release Flag` section;
 - the repo's MR template, for example `.gitlab/merge_request_templates/default.md`. The child finds it.
@@ -266,7 +283,7 @@ It writes the draft to the `doc path` from Overlay 2 and registers it as `mr_des
 - **Role: two sentences at most.** Say what this MR adds to the epic. If the change is behind the release flag, name the flag here.
 - **No exposition.** No background, no history, no description of the process that produced the code.
 - **Changes: one bullet per change.** Describe what changed, not a list of files.
-- **Known limitations.** Collect them from the plan, the build summaries, step 3a's notes, Critic findings the user declined, and release-flag exceptions. The repo template asks for a tracking story for each item. Use the story link when one exists. When none exists, mark the item `(needs a story)` so the user files one before opening the MR. Write `N/A` when there are no items.
+- **Known limitations.** Collect them from the plan, the build summaries, step 3a's notes, review findings the Developer declined that a reviewer would want to know about, Decided for You lines the user did not overrule, and release-flag exceptions. The repo template asks for a tracking story for each item. Use the story link when one exists. When none exists, mark the item `(needs a story)` so the user files one before opening the MR. Write `N/A` when there are no items.
 - **Never cite MAPS documents or their IDs.** Reviewers cannot see the spec, the plans, or IDs such as AC-3 or D-2.
 - **Title.** Propose an MR title in the repo's format, `type(scope): subject`. Take `type` from the Branch Plan.
 
@@ -296,6 +313,20 @@ Every story merges to `master` dark. One release flag turns the feature on after
 
 ---
 
+## Overlay 11 — Intake and the Direct Path (Step 0)
+
+The base Step 0 Intake and Direct Path apply, with these changes for a Direct change:
+
+- **One story, no epic.** Before the build, get the story: if `shortcut_write` is `enabled`, ask the user whether to file it under an existing epic or none, then create it and read back its number. Otherwise ask the user for the story number. Record it on the `Direct change` task: `task_update task_id=<id> shortcut_story_id=<story#>`.
+- **Branch.** The story's own branch replaces the base work branch. Name it as in Overlay 4.1, with the `type` the probe's change implies (ask the user if unclear). Create it as Overlay 5 steps 1 and 2 do, off a fresh `master`, and record the item base under `item_base:<epic-id>:sc-<story#>`. Record `start_branch:<epic-id>` as `master`. On escalation, check out `master` and rename the story branch with a `-direct` suffix, in place of `maps/<epic-slug>`. Escalating to Full then runs Overlay 1's Shortcut epic capture before the rest of the base setup.
+- **Release flag.** A Direct change adds no behavior, so it has nothing to hide. Tell the scope probe to record this as a release-rule exception in its Risk signals section. Show that line in the Intake recommendation, so the user confirms the exception when choosing Direct.
+- **Cypress.** The checks include the affected existing Cypress specs, selected by the Overlay 6 rule, run before the commit and again after each review round's fixes. A Direct change writes no new specs. If it needs one, it has new behavior, which is a risk signal.
+- **Commit messages** reference the story, as in Overlay 5 step 7.
+- **After the user review:** draft the MR description (Overlay 9). With no epic, leave out the epic paragraph. Create `MR description: sc-<story#>` and `Merge gate: sc-<story#>` (blocked by the MR description task), then run the merge gate as in Overlay 5 step 10. This replaces the base Direct path's "Done" step; mark the epic done after the merge gate.
+- **Document paths:** the review log is `.maps/docs/<epic-slug>/reviews/code-review-sc-<story#>.md`.
+
+---
+
 ## Delegation Contract Overlay (personas are unedited)
 
 The eight base personas and the Story Reconciler are not edited. All `mr-maps` behavior reaches them through the Delegation Contract you build for each task. Add these to the base contract as relevant:
@@ -308,6 +339,8 @@ The eight base personas and the Story Reconciler are not edited. All `mr-maps` b
 - **Developer at step 12:** emit a `## Branch` section from the Branch Plan row, and propose the `type` if missing.
 - **Developer at build (Overlay 5):** name the stack; build and test commands are runtime-discovered. Give it the release rule and the flag name from the spec's `## Release Flag` section.
 - **Critic at plan/code reconciliation (Overlay 5, step 3a):** also check the release rule against the built code.
+- **Critic at each code review round (Overlay 5, step 8):** also check the release rule against the story's diff.
+- **Test Writer after a review round's fixes (Overlay 5, step 8):** rerun the unit tests and the affected Cypress specs in both flag states.
 - **Test Writer (unit):** colocate tests per stack; commands runtime-discovered. Test code behind the flag in both flag states.
 - **Test Writer / Critic (Cypress):** the affected-spec selection rule, the flag-states rule, the UI-driven house rule, and coverage vigilance from Overlay 6.
 - **Developer at the MR description (Overlay 9):** the inputs from 9.1, the format from 9.2, and the rules from 9.3.
@@ -330,6 +363,7 @@ Follow the base `maps.md` for all of these:
 - Session delegation model, the main loop, context curation, model routing, the file tracker.
 - Human review: collect inline, record via a child session.
 - Critical review loops (3 iterations). Conditional LLM security review (2 iterations, skips when disabled).
+- Checkpoint commits, the Code Review Loop (Step 17r), the Critic build-time rules, the Question Ladder, and Decided for You, adapted per story by Overlay 5.
 - Crash recovery, loop iteration tracking, error handling, one-child-at-a-time, forward-only status, epic scoping.
 
 ## Starting the Workflow
@@ -340,9 +374,10 @@ User: "/mr-maps <problem statement for a Shortcut epic>"
 You:
 1. Read .claude/commands/maps.md (your base).
 2. Detect Shortcut write capability, record shortcut_write.
-3. Capture the Shortcut epic number, record shortcut_epic_number.
-4. Run the base setup (epic task, current_epic_id, project_init, LLM-security question, research chain).
-5. Follow the base workflow, applying the overlays above at steps 1, 4, 10, 11, 11c, 12, 14, 15–20, and the release gate and cleanup story after Step 20.
+3. Run the base setup through Step 0 Intake (epic task, current_epic_id, project_init, the code review skill check, Intake), keeping .maps/ out of git (Overlay 1).
+4. Direct: follow the base Direct Path with Overlay 11. Nothing: stop.
+5. Full: capture the Shortcut epic number, record shortcut_epic_number, then finish the base setup (LLM-security question, research chain).
+6. Follow the base workflow, applying the overlays above at steps 1, 4, 10, 11, 11c, 12, 14, 15–20, and the release gate and cleanup story after Step 20.
 ```
 
 Now begin, based on the user's problem statement.

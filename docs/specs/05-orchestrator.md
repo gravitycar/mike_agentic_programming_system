@@ -59,7 +59,8 @@ Loop iteration counts are derived from the task tree (count completed sibling ta
 - Respect hard limits defined in the command instructions:
   - **Catalog review (step 11a)**: **no loop**. One Critic pass, then the Architect revises, then the user reviews and approves at 11b. The user's review has no iteration limit, matching the spec review loop. The catalog is short and its findings are narrow, so a second automated round buys little.
   - **Critical review loop** (Critic finds questions → user answers → Critic re-reviews): **3 iterations**. If the Critic is still finding new questions after 3 rounds, something deeper is wrong and needs human intervention. **Cut directives are not questions and do not count toward this loop** — they pass to the Architect with the next revision and are applied without user arbitration.
-  - **Test/fix loop** (test → triage → fix → retest): **5 iterations**. Code fixes can take a few attempts.
+  - **Test/fix loop** (test → triage → fix → retest): **5 iterations**. Code fixes can take a few attempts. In steps 15-17 the limit is per item.
+  - **Code review loop** (Step 17r: review → Developer judges each finding → fix → re-review): **3 rounds** per item. Later rounds report Important findings only. See [12-review-loop.md](12-review-loop.md).
   - **Acceptance verification loop** (Step 20b: acceptance test → triage → fix → re-verify): **5 iterations**, same as the test/fix loop.
   - **Spec review loop** (user feedback → revise → re-review): **no hard limit** — this is human-driven and ends when the user signs off.
 - When the hard limit is reached, pause and present the situation to the user
@@ -83,6 +84,13 @@ Loop iteration counts are derived from the task tree (count completed sibling ta
 - When a test failure requires a code rebuild, undo previous code changes before rebuilding from a revised plan
 - Modified files are reverted via `git checkout`; new files are deleted from the file system
 - Claude performs these operations directly using its built-in git and file system access — no separate utility needed
+- From step 15 on, code undo restores files to the last checkpoint commit on the `maps/<epic-slug>` work branch. `git reset --hard` and `git clean` are never used
+
+### Commits and the Question Ladder
+- From step 15 on, the orchestrator commits code on a `maps/<epic-slug>` work branch at checkpoints, and never pushes ([12-review-loop.md](12-review-loop.md))
+- A build-time child that needs an answer returns `STATUS: NEEDS_ANSWER`. The orchestrator answers from the answer log or the spec, or sends the question to the Researcher (code facts) or the Architect (design), and only then to the user. It resumes the asking child with the answer
+- Steps 1 to 14 do not use the ladder. The user answers every spec-stage open question
+- Step 0 Intake routes new work to a Direct path, the Full workflow, or nothing ([11-intake.md](11-intake.md))
 
 ## Success Criteria
 Success criteria are per-task-type, defined in the `/maps` command instructions:

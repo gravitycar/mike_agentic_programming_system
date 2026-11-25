@@ -12,9 +12,9 @@ The system is **spec-driven**: it front-loads design decisions through iterative
 
 A lightweight variant, `/maps-lite`, for small changes and bug fixes is **specified** ([docs/specs/09-maps-lite.md](docs/specs/09-maps-lite.md)) but **not yet implemented** — the command, persona edits, and the full-`/maps` delegation retrofit are pending.
 
-A Step 0 Intake for `/maps`, which routes mechanical changes to a short Direct path, is **specified** ([docs/specs/11-intake.md](docs/specs/11-intake.md)) but **not yet implemented**.
+A Step 0 Intake for `/maps`, which routes mechanical changes to a short Direct path, is **implemented** in the `/maps` and `/mr-maps` commands ([docs/specs/11-intake.md](docs/specs/11-intake.md)), but not yet tried on a real epic.
 
-Item commits, a per-item code review loop, and a build-time question ladder are **specified** ([docs/specs/12-review-loop.md](docs/specs/12-review-loop.md)) but **not yet implemented**.
+Item commits on a `maps/<epic-slug>` work branch, a per-item code review loop (using `code-reviewer-metarouter` when installed), and a build-time question ladder are **implemented** in the commands ([docs/specs/12-review-loop.md](docs/specs/12-review-loop.md)), but not yet tried on a real epic.
 
 ## Architecture
 
@@ -127,8 +127,8 @@ mike_agentic_programming_system/
         ├── 08-project-setup.md        # Setup script, portability
         ├── 09-maps-lite.md            # /maps-lite lightweight workflow (spec; impl pending)
         ├── 10-telemetry.md            # Sub-agent token/time telemetry
-        ├── 11-intake.md               # Step 0 Intake + Direct path (spec; impl pending)
-        └── 12-review-loop.md          # Item commits, code review loop, question ladder (spec; impl pending)
+        ├── 11-intake.md               # Step 0 Intake + Direct path
+        └── 12-review-loop.md          # Item commits, code review loop, question ladder
 ```
 
 ### Target project structure (produced by `maps-init.sh`)
@@ -183,8 +183,9 @@ Read these specs in order — later specs depend on earlier ones.
 
 ## Workflow Overview
 
-20 steps, sequential execution within a single Claude Code conversation:
+Step 0 (Intake) routes new work to a Direct path, the full workflow, or nothing. The full workflow has 20 steps, sequential execution within a single Claude Code conversation:
 
+0. Intake: Researcher scope probe, then the user picks Direct / Full / Nothing
 1. User describes problem
 2. Researcher analyzes codebase
 3. Researcher searches web
@@ -199,9 +200,7 @@ Read these specs in order — later specs depend on earlier ones.
 13. Critic reviews plans (Critical Review #3)
 14. User resolves remaining questions
 14a-d. LLM Security Auditor reviews plans (skips if no LLM integration; 2-iteration limit)
-15. Developer builds code from plans
-16. Test Writer writes and runs unit tests
-17. Critic triages failures → Reviser/Developer/Test Writer fix → retest loop
+15–17r. Per item, one at a time, on a `maps/<epic-slug>` work branch: Developer builds → Critic reconciles plan/code (15a) → Test Writer writes and runs unit tests → triage/fix loop → checkpoint commit → code review loop (17r: Critic reviews, Developer fixes / declines / climbs each finding)
 18. Test Writer writes and runs integration tests
 19. Same triage/fix loop for integration tests
 20. Verifier confirms every acceptance criterion (MAPS-owned automatically, User-owned via hand-off); Critic triage adds a "criterion/spec wrong" verdict; the Epic completes only when all criteria are verified
@@ -211,7 +210,8 @@ Read these specs in order — later specs depend on earlier ones.
 ### Loop hard limits
 - **Critical review**: 3 iterations
 - **LLM security review**: 2 iterations (conditional — skips if no LLM integration)
-- **Test/fix**: 5 iterations
+- **Test/fix**: 5 iterations (per item in steps 15–17)
+- **Code review** (step 17r): 3 rounds per item
 - **Acceptance verification** (step 20 fix loop): 5 iterations
 - **Spec review** (human-driven): no limit
 
@@ -243,7 +243,7 @@ Forward-only. Never reopen completed tasks — create new ones instead.
 
 1. **Claude Code IS the orchestrator** — no separate TypeScript process, no standalone CLI
 2. **Agents are personas, not processes** — markdown files in `.claude/agents/`, not TypeScript classes
-3. **Session delegation** — each agent task delegated to a fresh child session via Task tool, preventing context window degradation
+3. **Session delegation** — each agent task delegated to a fresh child session via Task tool, preventing context window degradation. At build time, the orchestrator may resume the same child with `SendMessage`, to answer its question or to act on review findings
 4. **One child at a time** — sequential delegation, never parallel; each child sees code produced by previous children
 5. **Task tree drives sequencing** — `next_task` + blocker dependencies, not hardcoded step logic
 6. **Documents are shared state** — agents share context through documents on disk, not conversation history

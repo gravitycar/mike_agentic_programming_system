@@ -148,8 +148,8 @@ This replaces the earlier stacking rule (B branched off A's unmerged branch). St
 
 MAPS's "each child sees prior code" invariant still holds: a dependent story branches off a `master` that holds its dependency, and independent stories correctly do not see one another.
 
-### The per-story build loop (replaces steps 15–19)
-At step 14, the orchestrator creates one **merge gate** per story (`type="human-review"`, `agent="user"`), blocked by that story's `implement` task. A story that depends on story A is blocked by A's merge gate. For each `implement` task, in dependency order:
+### The per-story build loop (adapts base steps 15–19)
+The base runs a per-item build loop with checkpoint commits, a code review loop (Step 17r), and a build-time question ladder ([12-review-loop.md](12-review-loop.md)). `mr-maps` inherits all three and runs them per story, on the story's own branch. At step 14, the orchestrator creates one **merge gate** per story (`type="human-review"`, `agent="user"`), blocked at first by its Step 15a task. Every task created for the story later (tests, fixes, review rounds, questions, the MR description, and, for the final feature story, the Step 20 tasks) is added as a blocker of its merge gate. One story's loop, through its MR description, finishes before the next story starts. The epic completes only after the cleanup story merges. A story that depends on story A is blocked by A's merge gate. For each `implement` task, in dependency order:
 1. **Fresh `master`.** Every merge gate this story depends on is done. Fetch and fast-forward `master`.
 2. **Create the branch** off `master`.
 3. **Build** the story's code (Developer).
@@ -158,8 +158,9 @@ At step 14, the orchestrator creates one **merge gate** per story (`type="human-
 5. **Cypress gate.** Run the relevant Cypress specs in both flag states; all must pass (see [Testing Model](#testing-model)).
 6. **Triage/fix loop** on any failure: Critic → Reviser / Developer / Test Writer → retest. Hard limit: **5 iterations**, then stop and ask the user.
 7. **Commit** the code and tests on the branch (commit message references `sc-<story#>`). No MAPS document is committed.
-8. **MR description.** The Developer drafts it (see [MR Description](#mr-description)).
-9. **Merge gate.** The user pushes, opens the MR with the draft description, gets it approved, and merges it. The gate stays open until the user confirms the merge.
+8. **Code review loop.** Up to 3 rounds, as in the base Step 17r, scoped to the story's diff from `master`. The reviewer also checks the release rule, and each round's fixes rerun the unit tests and the affected Cypress specs in both flag states.
+9. **MR description.** The Developer drafts it (see [MR Description](#mr-description)).
+10. **Merge gate.** The user pushes, opens the MR with the draft description, gets it approved, and merges it. The gate stays open until the user confirms the merge. The gate also shows the base's "decided for you" list for the story.
 
 Code-undo before rebuild (`git checkout` + delete new files) applies within the loop, scoped to the branch, as in stock `/maps`.
 
@@ -238,6 +239,9 @@ A Step 20 failure enters the base Step 20 fix loop (5 iterations) on that branch
 
 **Legacy-path replacement.** When a story replaces a legacy path, its catalog item's Scope must note whether existing analytics or telemetry events need an equivalent on the new path, so parity is not dropped silently.
 
+## Intake and the Direct Path
+`mr-maps` inherits Step 0 Intake ([11-intake.md](11-intake.md)). A Direct change is one Shortcut story, under an existing epic or none, on its own branch off a fresh `master`. Its checks include the affected existing Cypress specs. It gets the code review loop, an MR description without the epic paragraph, and a merge gate. A Direct change adds no behavior, so the release flag does not apply, and the user confirms that exception when choosing Direct.
+
 ## Model Routing
 Base routing applies unchanged. See [05-orchestrator.md](05-orchestrator.md#model-routing). Two `mr-maps` steps are not in the base table:
 
@@ -302,3 +306,4 @@ Base routing applies unchanged. See [05-orchestrator.md](05-orchestrator.md#mode
 | 0.1.4 | 2026-10-08 | Mike Andersen | Replaced the numeric story-sizing ceiling with a logical-grouping rule (component or package), to keep CI pipeline cascades short across stacked story branches. Reverses `mr-maps`'s earlier inheritance of the base numeric ceiling; stock `/maps` keeps it unchanged. |
 | 0.1.5 | 2026-11-18 | Mike Andersen | Replaced stacking with flag-gated, merge-one-at-a-time stories: every story off a fresh `master`, a merge gate per story, one release flag per epic, inert backend changes with a user-decided exception path, Step 20 on the final feature story's branch with the flag on, a release gate, and a cleanup story that retires the flag. Removed the per-story plan review gate and the linearized Cypress stack. Kept logical-grouping sizing, with fewer review rounds as its reason. Resolved open questions #11 to #16. |
 | 0.1.6 | 2026-11-25 | Mike Andersen | Stopped committing documents: the spec and the plans stay in `.maps/`, excluded through the clone's local `info/exclude` file, and step 10 makes no sign-off commit. Removed the Spec Review Gate and the spec story. Added a draft MR description per story in the repo's template. Resolved open questions #17 to #19. |
+| 0.1.7 | 2026-11-25 | Mike Andersen | Inherited the base checkpoint commits, code review loop, and question ladder (12-review-loop.md) per story: the merge gate now follows the story's last review round, and one story's loop finishes before the next starts. Inherited Step 0 Intake (11-intake.md) with Direct-path deltas. |

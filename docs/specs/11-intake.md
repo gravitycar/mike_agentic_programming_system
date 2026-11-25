@@ -90,7 +90,7 @@ There is no Step 20. The problem statement and the probe's Checks section are th
 The user decides. The orchestrator offers Lite (once built) or Full, with the reason from the Developer or the Critic.
 
 On escalation:
-- The orchestrator restores any uncommitted change with the base code-undo procedure. It saves the whole attempt, `git diff <start>...HEAD`, to `.maps/docs/<epic-slug>/research/direct-attempt.diff`, registered as `direct_attempt`.
+- The orchestrator first saves the whole attempt, including uncommitted changes, `git diff <start>`, to `.maps/docs/<epic-slug>/research/direct-attempt.diff`, registered as `direct_attempt`. It then restores any uncommitted change with the base code-undo procedure.
 - It checks out the user's starting branch and renames the work branch to `maps/<epic-slug>-direct`. The branch is kept, not deleted. A later Step 15 then creates a fresh `maps/<epic-slug>`.
 - The open Direct tasks are set to `deferred`. Forward-only status holds. No task is reopened.
 - The epic stays. The probe and the saved diff go to the next path as inputs. For Full, both go to the Step 2 codebase research task.

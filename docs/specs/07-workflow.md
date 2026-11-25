@@ -8,6 +8,7 @@ The workflow defines the end-to-end pipeline from a user's initial problem state
 ## Context
 The workflow began as the 17 steps in the initial design notes and has since grown to include integration testing and acceptance verification. The current steps:
 
+0. **Agent / User** — Intake. A scope probe, then the user picks Direct, Full, or Nothing ([11-intake.md](11-intake.md)). Steps 1 to 20 are the Full path.
 1. **User** — Describes the problem statement/goal
 2. **Agent** — Takes stock of current codebase state. Summarize.
 3. **Agent** — Search the web for articles about the problem domain. Summarize.
@@ -24,10 +25,12 @@ The workflow began as the 17 steps in the initial design notes and has since gro
 12. **Agent** — Create implementation plans for every catalog item. Code examples welcome. Include unit tests. Note blocking dependencies between plans.
 13. **Agent** — Critical Review #3. Review each implementation plan against previously answered open questions.
 14. **User** — Review and resolve remaining open questions.
-15. **Agent** — Build each implementation plan.
-15a. **Critic** — Plan/Code Reconciliation Review. Single pass, no loop (same pattern as 11a). Diffs the plan against the shipped code for one item; routes MATCH / PLAN STALE / CODE WRONG / ESCALATE.
-16. **Agent** — Run unit test suite.
-17. **Agent** — Review test results. For failures: update plan, undo changes, rebuild, retest.
+15–17r. **Per-item build loop** on a `maps/<epic-slug>` work branch, one catalog item at a time ([12-review-loop.md](12-review-loop.md)):
+  15. **Agent** — Build the item from its plan.
+  15a. **Critic** — Plan/Code Reconciliation Review. Single pass, no loop (same pattern as 11a). Diffs the plan against the shipped code for one item; routes MATCH / PLAN STALE / CODE WRONG / ESCALATE.
+  16. **Agent** — Write and run the item's unit tests.
+  17. **Agent** — Review test results. For failures: update plan, undo changes, rebuild, retest. When the tests pass, commit.
+  17r. **Critic / Developer** — Code review loop, up to 3 rounds. The Critic reviews the item's diff, using `code-reviewer-metarouter` when installed. The Developer fixes, declines, or sends each finding up the question ladder.
 18. **Agent** — Write and run integration tests.
 19. **Agent** — Review integration test results. For failures: same triage/fix loop as step 17.
 20. **Agent** — Acceptance Verification. Materialize Acceptance Test and Acceptance Criterion tasks (AT blocks AC blocks Epic); run/confirm MAPS-owned Acceptance Tests and triage/fix failures; then hand off User-owned Acceptance Tests to the user. The Epic completes only when every Acceptance Criterion is verified. (See "Acceptance Verification" below.)
@@ -37,7 +40,10 @@ The workflow began as the 17 steps in the initial design notes and has since gro
 - All execution is sequential — Claude works through tasks one at a time within a single conversation
 - Human review steps must pause the workflow until the user provides input
 - Critical review loops (steps 5-9) must repeat until the Critic finds zero new open questions AND the user signs off. Hard limit: 3 iterations.
-- Implementation and test loops (steps 15-17, 18-19) and the acceptance verification loop (step 20) have a hard limit of 5 iterations
+- Implementation and test loops (steps 15-17, 18-19) and the acceptance verification loop (step 20) have a hard limit of 5 iterations. In steps 15-17 the limit is per item.
+- The code review loop (step 17r) has a hard limit of 3 rounds per item.
+- From step 15 on, build-time questions climb the question ladder (child, orchestrator, Researcher or Architect, user) before they reach the user. Steps 1 to 14 keep the open-question process, in which the user answers every question. See [12-review-loop.md](12-review-loop.md).
+- From step 15 on, MAPS commits its own code on the work branch at checkpoints. It never pushes.
 - Integration testing (steps 18-19) follows the same triage/fix loop pattern as unit testing
 - Step 15a is not a loop and carries no iteration limit, the same as Step 11a — it runs once per implement task, between code being built and unit tests starting
 - Each step must update task status in the database via the MCP server

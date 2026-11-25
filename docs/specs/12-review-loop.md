@@ -54,19 +54,25 @@ For each `implement` task, in dependency order:
 
 **Items run strictly one at a time.** The next item does not start until the current item's review loop has ended. Otherwise a checkpoint commit for one item could include another item's uncommitted files.
 
-**Task wiring (after Step 14).** Per item: `implement` → Step 15a `agent-review` → unit `test` → round-1 review `agent-review`. Each item's `implement` task is also blocked by the previous item's round-1 review task, in dependency order. When the orchestrator creates a later review round for an item, it adds that round as a blocker (`blocker_add`) to the next item's `implement` task, and to the Step 18 integration test task when the item is the last one. Step 18 is blocked by every item's review rounds.
+**Task wiring (after Step 14).** Per item, only the `implement` task and its Step 15a task exist at first. Each item's `implement` task is blocked by the previous item's Step 15a task, and the Step 18 integration test task by the last item's. The unit test task, triage and fix tasks, review rounds, and ladder questions are created only when needed: `next_task` returns open tasks in creation order, so a task created early would open early.
+
+**The item hold.** The next item's `implement` task (or the Step 18 task, after the last item) is the hold target. Every task created for the current item is added as a blocker of the hold target before the orchestrator asks `next_task` for more work. `blocker_add` re-blocks a target that a cascade just opened. Only `done` releases a blocker, so a task is never deferred while it is a blocker: its edges are removed first. Before resuming the Developer on `Needs changes`, the orchestrator reserves the next review round as a held task, so nothing can open while review fixes are uncommitted. The reserved round is itself a second hold target: every task created for the current round's fixes also blocks it, so it cannot run before those fixes are tested and committed.
 
 Steps 18 to 20 are unchanged.
 
 ## The Code Review Loop (Step 17r)
 
 ### Setup: detect the skill
-During Initial Setup, the orchestrator searches the available skills for `code-reviewer-metarouter` and records `config_set key="code_review_skill" value="available|unavailable"`.
+During Initial Setup, the orchestrator searches the available skills for `code-reviewer-metarouter`. The skill counts as available only when its `review_diff.py` accepts `--base`, which MetaRouter plugin 0.22.0 and later do. Without `--base`, the skill can only diff against the default branch, and a shared work branch would make every item's review include every earlier item. The orchestrator records `config_set key="code_review_skill" value="available|unavailable"`.
+
+**Scoping a review to one item.** Before an item's build starts, the orchestrator records the work branch's `HEAD` SHA as that item's base. Every review round for the item passes that SHA as `--base` to the skill's scripts, so the reviewer sees only this item's commits. In `mr-maps` the story branch starts from `master`, so the story's base is the commit it branched from.
+
+**Python.** The skill's scripts run under `python3`. A repo that pins tool versions (for example with asdf) must make a Python 3 available, or the Critic falls back to the native review.
 
 ### Each round
 1. **Review.** The orchestrator creates an `agent-review` task named `Code review round <n>: <item>` and delegates the Critic on `opus`.
-   - With the skill available, the Critic runs it against the work branch and verifies each finding against the source, as the skill's own instructions require. When the skill uses Codex, a review can run longer than a child's 10-minute command limit. The Critic therefore starts the review in the background and waits in a loop of bounded checks.
-   - Without the skill, the Critic reviews the diff itself, applying the [Critic build-time rules](#critic-build-time-rules) and the skill's severity scale (Important, Nit, Pre-existing).
+   - With the skill available, the Critic runs it against the work branch, with `--base` set to the item's base SHA, and verifies each finding against the source, as the skill's own instructions require. When the skill uses Codex, a review can run longer than a child's 10-minute command limit. The Critic therefore starts the review in the background and waits in a loop of bounded checks.
+   - Without the skill, the Critic reviews `git diff <item base>..HEAD` itself, applying the [Critic build-time rules](#critic-build-time-rules) and the skill's severity scale (Important, Nit, Pre-existing).
    - The Critic writes the round's report to the item's review log and returns a verdict: `LGTM` or `Needs changes (N)`.
 2. **Judge.** On `Needs changes`, the orchestrator resumes the item's build Developer child (see [Resuming children](#resuming-children)) with the findings. For each finding the Developer chooses one of three outcomes:
    - **Fix.**
@@ -186,7 +192,7 @@ Implementing this spec changes:
 - [07-workflow.md](07-workflow.md) — Steps 15 to 20.
 - [04b-agent-architect.md](04b-agent-architect.md), [04c-agent-developer.md](04c-agent-developer.md), [04d-agent-critic.md](04d-agent-critic.md), [04a-agent-researcher.md](04a-agent-researcher.md) — the reused personas.
 - [10-mr-maps.md](10-mr-maps.md) and [11-intake.md](11-intake.md) — the variants that inherit this loop.
-- External: the `code-reviewer-metarouter` skill from the MetaRouter Claude plugin (optional), and the Codex CLI that skill uses when it is installed (optional).
+- External: the `code-reviewer-metarouter` skill from the MetaRouter Claude plugin, 0.22.0 or later (optional), with a Python 3 on the path, and the Codex CLI that skill uses when it is installed (optional).
 
 ## Open Questions
 1. ~~May `/maps` children commit code?~~ **Resolved** — yes, on a `maps/<epic-slug>` work branch, at checkpoints, never pushed.
@@ -198,8 +204,11 @@ Implementing this spec changes:
 7. ~~Should the Direct path in [11-intake.md](11-intake.md) use this review loop and commit on the work branch?~~ **Resolved** — yes. Every path reviews and commits the same way. See 11-intake.md v0.1.1.
 8. ~~Should the Developer that judges findings run on `opus` instead of the resumed `sonnet` build child?~~ **Resolved** — keep the resumed `sonnet` build child, for its build context. A finding it cannot judge climbs to the Architect on `opus`, so the hard calls still get `opus`.
 
+9. ~~The installed skill (0.4.10) could only diff against the default branch. How does a base `/maps` review see only one item?~~ **Resolved** — require MetaRouter plugin 0.22.0 or later, whose scripts accept `--base`, and pass the item's starting SHA. An older skill counts as unavailable, and the Critic reviews natively.
+
 ## Version History
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 0.1.0 | 2026-11-25 | Mike Andersen | Initial draft. Item commits on a work branch, a per-item build loop, a 3-round code review loop using `code-reviewer-metarouter` when available, Critic build-time rules, and the question ladder. Resolved open questions #1 to #6. |
 | 0.1.1 | 2026-11-25 | Mike Andersen | Resolved open questions #7 and #8: the Direct path uses this loop, and the resumed `sonnet` build child judges findings. |
+| 0.1.2 | 2026-11-25 | Mike Andersen | Scoped each review to one item with the skill's `--base` option (plugin 0.22.0 or later). Resolved open question #9. |
