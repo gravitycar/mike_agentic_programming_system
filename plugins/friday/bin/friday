@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Friday launcher. Runs from the repo, so asdf resolves the node this repo pins
+# (the one better-sqlite3 was built for), whatever folder Friday is called from.
+set -e
+SRC="${BASH_SOURCE[0]}"
+while [ -L "$SRC" ]; do
+  DIR="$(cd -P "$(dirname "$SRC")" && pwd)"
+  SRC="$(readlink "$SRC")"
+  case "$SRC" in /*) ;; *) SRC="$DIR/$SRC" ;; esac
+done
+SELF="$(cd -P "$(dirname "$SRC")" && pwd)"
+REPO="$(cd "$SELF/../../.." && pwd)"
+CLI="$SELF/../dist/src/cli.js"
+if [ ! -f "$CLI" ]; then
+  echo "Friday is not built. Run: (cd $REPO && npm run build:friday)" >&2
+  exit 1
+fi
+export FRIDAY_CALLER_CWD="$PWD"
+cd "$REPO"
+exec node "$CLI" "$@"

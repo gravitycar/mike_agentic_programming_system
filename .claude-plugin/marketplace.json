@@ -1,0 +1,14 @@
+{
+  "name": "mike-maps",
+  "owner": {
+    "name": "Mike Andersen"
+  },
+  "plugins": [
+    {
+      "name": "friday",
+      "source": "./plugins/friday",
+      "description": "Friday: Mike's scheduled background agents (Pipeline Watch, Review Responder) with a menu bar inbox. Never merges."
+    }
+  ],
+  "description": "Mike Andersen's personal Claude Code plugins, including Friday."
+}

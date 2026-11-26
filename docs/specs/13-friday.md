@@ -102,6 +102,8 @@ One SQLite file, `~/.friday/state.db` (using the `better-sqlite3` dependency the
 - **escalations:** items waiting on Mike. Each holds the process, the MR (project, number, URL), a one-line summary, the agent's session ID, its working folder, and when it was raised and settled.
 
 ### Escalations and the Inbox
+**Dry-run escalations** appear in the inbox marked `[dry run]`, so Mike can review what a process would escalate. They add no label and post no notification.
+
 An escalation is anything a process cannot settle on its own: a review comment that would commit Mike, a code failure in a pipeline, a limit reached, or a give-up. Escalations reach Mike through three channels:
 
 1. **The menu bar inbox.** [SwiftBar](https://swiftbar.app), a free menu bar tool installed with `brew install --cask swiftbar`, runs `inbox/friday.1m.sh` every minute. That script calls `friday inbox --swiftbar`, which prints SwiftBar's menu format:
@@ -131,9 +133,19 @@ Three layers, so no single mistake can merge an MR:
 2. **A PreToolUse hook** in the plugin denies Bash commands that merge or set auto-merge, such as `glab mr merge`, an API call to `/merge_requests/<iid>/merge`, or any of the parameters above. It also denies a push to the default branch. The hook applies in every session that loads the plugin, including Mike's interactive sessions.
 3. **Every process prompt** states the rule, and no `outward_actions` value can allow it.
 
+## Containment
+The merge guard reads command text, so it cannot see what a program does once it runs. A process that may run interpreters (Review Responder runs tests and the review skill) could otherwise use Mike's GitLab sign-in and SSH key directly. So every process that runs more than `friday` runs its Bash commands in **Claude Code's sandbox**:
+
+- Every Bash command, and every program it starts, is sandboxed. Unsandboxed retries are off, and the run fails if the sandbox is unavailable.
+- Network access is limited to the process's `sandbox_domains` (package registries, the Go module proxy, and Codex for Review Responder; nothing for Pipeline Watch). `gitlab.com` and `github.com` are always denied, so SSH pushes and API calls from inside the sandbox fail.
+- Only a top-level `friday` command runs outside the sandbox. Inside an agent, `friday` allows only `act`, `gl`, `escalate`, and `settle --cwd`, and it takes the mode from the state store, so an agent cannot promote itself to live.
+- Tested in headless mode on 2026-11-25: sandboxed `curl` and `node` could not reach gitlab.com, the npm registry answered, SSH could not resolve gitlab.com, and a sandboxed program that started `friday` stayed sandboxed and was refused.
+
+The merge guard hook still runs in every session, as a second layer.
+
 ## Process 1: Pipeline Watch
 
-**Schedule:** every 10 minutes, weekdays 07:00–18:00 local time. **Outward actions:** `retry_job`, `play_manual_job`, `add_label`, `post_note`.
+**Schedule:** every 10 minutes, weekdays 07:00–18:00 local time. **Model:** `sonnet`. **Outward actions:** `retry_job`, `play_job`, `rebuild_review_env`, `add_label`, `remove_label`. It posts no notes or comments on MRs.
 
 **Precheck (no model).** It lists Mike's open MRs in the configured projects. For each one it reads the latest pipeline on the head commit. It selects pipelines that have a failed job that is not allowed to fail, and whose newest instance has not been handled yet. Retried jobs create new instances, so the precheck always takes the newest instance per job name.
 
@@ -154,11 +166,11 @@ The `ion` playbook starts from Mike's `ion` memories `ci-review-env-cypress-ops`
 
 ## Process 2: Review Responder
 
-**Schedule:** every 30 minutes, weekdays 07:00–18:00 local time. **Outward actions:** `push_branch`, `post_reply`, `add_reaction`, `add_label`, `remove_label`.
+**Schedule:** every 30 minutes, weekdays 07:00–18:00 local time. **Model:** `opus`, because judging review comments is the hard part. **Outward actions:** `push_branch`, `post_reply`, `add_reaction`, `add_label`, `remove_label`.
 
 **Precheck (no model).** It lists Mike's open, non-draft MRs with unresolved threads, or general comments, whose last note is by someone other than Mike or Friday, and that are not yet handled. It skips an MR whose branch is busy: a live Claude session in a checkout of it, unsaved changes in a checkout, or another Friday run. It also skips threads already escalated, until Mike responds.
 
-**Agent per MR**, in its own worktree, following `skills/review-responder/SKILL.md`. It judges each thread with these questions, in order:
+**Agent per MR**, in a Friday-owned worktree of the MR's branch, following `skills/review-responder/SKILL.md`. It judges each thread with these questions, in order:
 1. **Is it a finding?** A question → answer it. Thanks or an FYI → a 🤖 reaction and nothing else.
 2. **Does it hold against the code?** No → decline it, saying what the code does.
 3. **Would acting on it commit Mike?** Yes, for **scope** (the fix goes well past the MR), **position** (it takes a side someone else owns, or settles a dispute between reviewers), or **irreversible** (data, migrations, production impact) → escalate.
@@ -180,6 +192,8 @@ Then:
 5. `friday schedule add <name>`. It starts in dry-run mode. Switch it on with `friday mode <name> live`.
 
 ## Build Phases
+All three phases are built (2026-11-25). Pipeline Watch and Review Responder start in dry-run mode.
+
 1. **Core:** the plugin and marketplace files, the CLI, the runner, launchd, the state store, the GitLab client, the merge guard hook, the escalation inbox (SwiftBar menu, label, notification, resume, settle), `friday status`, and a `hello` process that raises a test escalation to prove it end to end.
 2. **Pipeline Watch,** first in dry-run mode, then live.
 3. **Review Responder,** first in dry-run mode, then live.
@@ -219,3 +233,5 @@ Then:
 | 0.1.0 | 2026-11-25 | Mike Andersen | Initial draft: core runner, scheduler, state, merge guard, Pipeline Watch, Review Responder, and the process-folder extension model. |
 | 0.1.1 | 2026-11-25 | Mike Andersen | Resolved open questions #1 to #6: TypeScript; new commits, never amended or force-pushed; automatic review-env rebuilds for `ion`; report-only code failures; a SwiftBar menu bar inbox with one-click session resume in place of the daily digest; dry-run until Mike switches a process live by hand. |
 | 0.1.2 | 2026-11-25 | Mike Andersen | Renamed the suite from Autopilot to Friday, with neutral colleague-facing labels (`needs-mike`, `bot-gave-up`) and reply header. Resolved open questions #7 to #9: `ion` and `roost` on weekdays 07:00 to 18:00; reviewers resolve their own threads; the name. All open questions resolved. |
+| 0.1.3 | 2026-11-25 | Mike Andersen | Built. Changes found while building: Pipeline Watch posts no notes and declares `rebuild_review_env` and the label actions; every process that escalates on an MR declares `add_label` and `remove_label`, so settling removes the label; Review Responder runs on `opus` and keeps one worktree per open MR (pruned when the MR closes), so dependencies install once; dry-run escalations show in the inbox without a label or notification; `friday run --only <label>` runs one item; a `hello` process tests the inbox end to end. |
+| 0.1.4 | 2026-11-25 | Mike Andersen | Added Containment: Review Responder and Pipeline Watch run their Bash commands in Claude Code's sandbox, with GitLab reachable only through `friday`. Chosen by Mike over a tools-only restriction after a code review showed text guards cannot stop an interpreter. Also fixed 17 defects from that review. |

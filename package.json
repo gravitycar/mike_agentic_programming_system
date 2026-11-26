@@ -24,7 +24,9 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsc && node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:friday": "tsc -p plugins/friday/tsconfig.json",
+    "test:friday": "npm run build:friday && node --test \"plugins/friday/dist/test/**/*.test.js\" plugins/friday/test/merge-guard.test.mjs"
   },
   "repository": {
     "type": "git",

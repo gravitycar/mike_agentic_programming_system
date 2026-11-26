@@ -1,0 +1,6 @@
+{
+  "name": "friday",
+  "description": "Friday: Mike's scheduled background agents with a menu bar inbox. Never merges an MR or sets auto-merge.",
+  "version": "0.1.0",
+  "author": { "name": "Mike Andersen" }
+}

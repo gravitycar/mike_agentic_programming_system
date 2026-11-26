@@ -16,6 +16,8 @@ A Step 0 Intake for `/maps`, which routes mechanical changes to a short Direct p
 
 Item commits on a `maps/<epic-slug>` work branch, a per-item code review loop (using `code-reviewer-metarouter` when installed), and a build-time question ladder are **implemented** in the commands ([docs/specs/12-review-loop.md](docs/specs/12-review-loop.md)), but not yet tried on a real epic.
 
+**Friday**, a personal plugin of scheduled background agents (Pipeline Watch, Review Responder) with a SwiftBar menu bar inbox, is **built** in `plugins/friday/` ([docs/specs/13-friday.md](docs/specs/13-friday.md)). Build and test it with `npm run test:friday`; control it with the `friday` command. Both processes start in dry-run mode. It never merges an MR.
+
 ## Architecture
 
 ```
@@ -70,6 +72,9 @@ mike_agentic_programming_system/
 ├── package.json                       # npm package (@mikegravity/maps), build/start scripts
 ├── tsconfig.json
 ├── maps-init.sh                       # Setup script — installs MAPS into a target project
+├── .claude-plugin/marketplace.json   # Lists the friday plugin
+├── plugins/
+│   └── friday/                        # Friday: scheduled background agents (see docs/specs/13-friday.md)
 ├── bin/
 │   ├── maps-server.sh                 # MCP server launcher (pins MAPS's own node)
 │   └── maps-subagent-telemetry.sh     # SubagentStop telemetry hook launcher
@@ -129,7 +134,7 @@ mike_agentic_programming_system/
         ├── 10-telemetry.md            # Sub-agent token/time telemetry
         ├── 11-intake.md               # Step 0 Intake + Direct path
         ├── 12-review-loop.md          # Item commits, code review loop, question ladder
-        └── 13-friday.md               # Friday: personal background-agent plugin (spec; impl pending)
+        └── 13-friday.md               # Friday: personal background-agent plugin
 ```
 
 ### Target project structure (produced by `maps-init.sh`)
