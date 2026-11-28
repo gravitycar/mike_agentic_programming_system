@@ -13,7 +13,8 @@ if [ ! -d "$M/.git" ]; then
 fi
 git -C "$M" fetch --quiet origin
 git -C "$M" checkout --quiet --force origin/main
-chmod -R g+rwX "$M"
+# Only files Mike owns: build output belongs to quickwin, and chmod on it fails.
+find "$M" -user "$(id -u)" -exec chmod g+rwX {} +
 git config --global --get-all safe.directory | grep -qxF "$M" || git config --global --add safe.directory "$M"
 sudo -n -u quickwin -H bash -lc "cd ~; git config --global --get-all safe.directory | grep -qxF '$M' || git config --global --add safe.directory '$M'"
 
