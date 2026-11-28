@@ -18,6 +18,8 @@ Item commits on a `maps/<epic-slug>` work branch, a per-item code review loop (u
 
 **Friday**, a personal plugin of scheduled background agents (Pipeline Watch, Review Responder) with a SwiftBar menu bar inbox, is **built** in `plugins/friday/` ([docs/specs/13-friday.md](docs/specs/13-friday.md)). Build and test it with `npm run test:friday`; control it with the `friday` command. Both processes start in dry-run mode. It never merges an MR.
 
+**Quick Wins**, a Friday scout and worker that build one small Shortcut story at a time on Bartleby, is **built** ([docs/specs/14-quick-wins.md](docs/specs/14-quick-wins.md)). The scout runs hourly in dry-run. The worker has not built a story yet.
+
 ## Architecture
 
 ```
@@ -135,7 +137,7 @@ mike_agentic_programming_system/
         ├── 11-intake.md               # Step 0 Intake + Direct path
         ├── 12-review-loop.md          # Item commits, code review loop, question ladder
         ├── 13-friday.md               # Friday: personal background-agent plugin
-        └── 14-quick-wins.md           # Quick Wins: Friday scout + worker on Bartleby (spec; impl pending)
+        └── 14-quick-wins.md           # Quick Wins: Friday scout + worker on Bartleby
 ```
 
 ### Target project structure (produced by `maps-init.sh`)

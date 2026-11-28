@@ -1,6 +1,6 @@
 # Specification: Quick Wins (Friday Scout and Worker)
 
-## Status: Draft
+## Status: Built (2026-11-28). The scout is scheduled in dry-run. The worker has not built a story yet.
 
 ## Overview
 Quick Wins adds two Friday processes ([13-friday.md](13-friday.md)) that find small Shortcut stories and build them, one at a time:
@@ -131,6 +131,17 @@ Checked on 2026-11-28 before building:
 | Scout (duplicate search, scope probe) | `sonnet` | Finding and comparing stories; the probe is the same as Intake's |
 | Worker (`/maps` unattended Direct) | `opus` | Builds and judges code changes, like Review Responder |
 
+## Build
+The code is in `plugins/friday/`. These parts make up Quick Wins:
+
+- **Processes.** `processes/quick-wins-scout/` runs hourly in working hours. `processes/quick-wins-worker/` has a manual schedule and `runs_on: bartleby`.
+- **Scout skill.** `skills/quick-wins-scout/SKILL.md` holds the repo check, the duplicate search, the scope probe, and the record step.
+- **Code.** `src/shortcut.ts` is the Shortcut client. `src/qw.ts` holds eligibility, reconcile, offer, start, the worker run, and Open MR.
+- **Commands.** `friday sc search|story` reads Shortcut. `friday qw offer|rule-out|start|open-mr|run-worker|status` drives the states. Inside an agent, only the scout may call `qw offer`, `qw rule-out`, and `sc`.
+- **Config.** Mike's Shortcut member id and mention name live only in `~/.friday/config.json`. The Shortcut token lives in `~/.friday/shortcut-token` (mode 600).
+- **Bartleby.** `bartleby/` holds the setup scripts, `quickwin-resync-ion.sh`, and `quickwin-claude.sh`, which starts Claude with the MAPS MCP server. `setup-quickwin-maps.sh` installs MAPS into the quickwin clones and never changes tracked files.
+- **`/maps`.** The Unattended Mode section in `.claude/commands/maps.md` handles the `UNATTENDED:` prompt and ends with the `QUICK_WIN_RESULT` block.
+
 ## Requirements
 - Two processes, `quick-wins-scout` (scheduled) and `quick-wins-worker` (started from the inbox), each starting in dry-run mode. In dry-run, the scout still offers real candidates, marked `[dry run]`; the worker builds on Bartleby but does not claim the story or push.
 - The scout offers at most one candidate, and none while a quick win is offered, building, awaiting an MR, or stuck.
@@ -161,3 +172,4 @@ Checked on 2026-11-28 before building:
 |---------|------|--------|---------|
 | 0.1.0 | 2026-11-28 | Mike Andersen | Initial draft from the design discussion: scout and worker, eligibility, one-at-a-time states, duplicate search, claim on Start, push then ask, Bartleby as the worker host, and the readiness checklist. |
 | 0.1.1 | 2026-11-28 | Mike Andersen | Bartleby readiness completed. The worker runs as a separate `quickwin` user with no GitLab credentials (Mike's choice over loosening the sandbox for Cypress); Friday pushes from a mirror with Mike's access. Added the setup scripts and the extended resync recipe. |
+| 0.1.2 | 2026-11-28 | Mike Andersen | Built. Added the Build section. The scout trial ruled out three stories with correct reasons, and the scout is scheduled in dry-run. |
