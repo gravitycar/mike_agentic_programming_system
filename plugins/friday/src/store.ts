@@ -84,6 +84,12 @@ export interface Escalation {
   settled_reason: string | null;
   /** 1 when the needs-mike label was applied to the MR. */
   labeled?: number;
+  /** escalation (default), qw-candidate, qw-ready or qw-stuck: decides the inbox actions. */
+  kind?: string;
+  /** What the item is about, for kinds that need it: a Shortcut story id. */
+  ref?: string | null;
+  /** The SSH host the session lives on, when it is not this Mac. */
+  host?: string | null;
 }
 
 export interface RunRow {
@@ -113,6 +119,10 @@ export class Store {
     this.db.exec(SCHEMA);
     const cols = (this.db.prepare('PRAGMA table_info(escalations)').all() as { name: string }[]).map((c) => c.name);
     if (!cols.includes('labeled')) this.db.exec('ALTER TABLE escalations ADD COLUMN labeled INTEGER NOT NULL DEFAULT 0');
+    if (!cols.includes('kind')) this.db.exec("ALTER TABLE escalations ADD COLUMN kind TEXT NOT NULL DEFAULT 'escalation'");
+    if (!cols.includes('ref')) this.db.exec('ALTER TABLE escalations ADD COLUMN ref TEXT');
+    if (!cols.includes('host')) this.db.exec('ALTER TABLE escalations ADD COLUMN host TEXT');
+    this.db.exec(QUICKWINS_SCHEMA);
   }
 
   close() {
@@ -209,8 +219,8 @@ export class Store {
   raise(e: Omit<Escalation, 'id' | 'raised_at' | 'settled_at' | 'settled_reason' | 'labeled'>): number {
     return Number(
       this.db
-        .prepare('INSERT INTO escalations (process, project, mr, mr_url, subject, summary, session_id, cwd, mode, raised_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(e.process, e.project, e.mr, e.mr_url, e.subject, e.summary, e.session_id, e.cwd, e.mode, now()).lastInsertRowid
+        .prepare('INSERT INTO escalations (process, project, mr, mr_url, subject, summary, session_id, cwd, mode, raised_at, kind, ref, host) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(e.process, e.project, e.mr, e.mr_url, e.subject, e.summary, e.session_id, e.cwd, e.mode, now(), e.kind ?? 'escalation', e.ref ?? null, e.host ?? null).lastInsertRowid
     );
   }
   openEscalations(): Escalation[] {
@@ -243,3 +253,66 @@ export class Store {
     else this.db.prepare('INSERT OR REPLACE INTO steps (key, value, at) VALUES (?, ?, ?)').run(key, value, now());
   }
 }
+
+const QUICKWINS_SCHEMA = `
+CREATE TABLE IF NOT EXISTS quickwins (
+  story_id INTEGER PRIMARY KEY,
+  state TEXT NOT NULL,
+  name TEXT,
+  repo TEXT,
+  branch TEXT,
+  session_id TEXT,
+  cwd TEXT,
+  mr_url TEXT,
+  reason TEXT,
+  mode TEXT,
+  updated_at TEXT NOT NULL
+);
+`;
+
+/** Quick-win states. Every state but the last two blocks the scout. */
+export type QuickWinState = 'offered' | 'building' | 'awaiting-mr' | 'stuck' | 'mr-opened' | 'dismissed' | 'ruled-out';
+export const BLOCKING_STATES: QuickWinState[] = ['offered', 'building', 'awaiting-mr', 'stuck'];
+
+export interface QuickWin {
+  story_id: number;
+  state: QuickWinState;
+  name: string | null;
+  repo: string | null;
+  branch: string | null;
+  session_id: string | null;
+  cwd: string | null;
+  mr_url: string | null;
+  reason: string | null;
+  mode: string | null;
+  updated_at: string;
+}
+
+export interface QuickWinStore {
+  quickWin(storyId: number): QuickWin | undefined;
+  activeQuickWin(): QuickWin | undefined;
+  setQuickWin(storyId: number, fields: Partial<Omit<QuickWin, 'story_id' | 'updated_at'>> & { state: QuickWinState }): void;
+  knownStoryIds(): Set<number>;
+}
+
+declare module './store.js' {
+  interface Store extends QuickWinStore {}
+}
+
+Store.prototype.quickWin = function (this: Store, storyId: number) {
+  return this.db.prepare('SELECT * FROM quickwins WHERE story_id = ?').get(storyId) as QuickWin | undefined;
+};
+Store.prototype.activeQuickWin = function (this: Store) {
+  const marks = BLOCKING_STATES.map(() => '?').join(',');
+  return this.db.prepare(`SELECT * FROM quickwins WHERE state IN (${marks}) ORDER BY updated_at DESC LIMIT 1`).get(...BLOCKING_STATES) as QuickWin | undefined;
+};
+Store.prototype.setQuickWin = function (this: Store, storyId: number, f) {
+  const cur = this.quickWin(storyId);
+  const row = { ...(cur ?? {}), ...f, story_id: storyId, updated_at: new Date().toISOString() } as QuickWin;
+  this.db
+    .prepare('INSERT OR REPLACE INTO quickwins (story_id, state, name, repo, branch, session_id, cwd, mr_url, reason, mode, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(row.story_id, row.state, row.name ?? null, row.repo ?? null, row.branch ?? null, row.session_id ?? null, row.cwd ?? null, row.mr_url ?? null, row.reason ?? null, row.mode ?? null, row.updated_at);
+};
+Store.prototype.knownStoryIds = function (this: Store) {
+  return new Set((this.db.prepare('SELECT story_id FROM quickwins').all() as { story_id: number }[]).map((r) => r.story_id));
+};

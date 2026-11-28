@@ -134,7 +134,8 @@ mike_agentic_programming_system/
         ├── 10-telemetry.md            # Sub-agent token/time telemetry
         ├── 11-intake.md               # Step 0 Intake + Direct path
         ├── 12-review-loop.md          # Item commits, code review loop, question ladder
-        └── 13-friday.md               # Friday: personal background-agent plugin
+        ├── 13-friday.md               # Friday: personal background-agent plugin
+        └── 14-quick-wins.md           # Quick Wins: Friday scout + worker on Bartleby (spec; impl pending)
 ```
 
 ### Target project structure (produced by `maps-init.sh`)
@@ -187,6 +188,7 @@ Read these specs in order — later specs depend on earlier ones.
 | **11-intake.md** | Step 0 Intake and the Direct path | Scope probe, four outcomes (Direct / Lite / Full / Nothing), Critic diff review, 2-iteration fix loop, escalation in place |
 | **12-review-loop.md** | Item commits, per-item build loop, code review loop, question ladder | `maps/<epic-slug>` work branch, `code-reviewer-metarouter` (optional), 3 review rounds, Developer judges findings, `NEEDS_ANSWER` climbs orchestrator → Researcher/Architect → user |
 | **13-friday.md** | Friday, a personal plugin of scheduled background agents | Process folders, `claude -p` runner, launchd, SwiftBar inbox with session resume, never merges, Pipeline Watch, Review Responder |
+| **14-quick-wins.md** | Quick Wins: one small Shortcut story at a time, built on Bartleby | Scout and worker, eligibility, duplicate search, claim on Start, push then ask, unattended `/maps` Direct |
 
 ## Workflow Overview
 

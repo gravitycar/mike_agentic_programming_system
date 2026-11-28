@@ -19,6 +19,26 @@ export interface FridayConfig {
   /** Text every automated reply starts with. Colleagues see it. */
   replyHeader: string;
   labels: { needsMike: string; gaveUp: string };
+  quickWins: QuickWinsConfig;
+}
+
+export interface QuickWinsConfig {
+  /** Mike's Shortcut member id and mention name. */
+  memberId: string;
+  mentionName: string;
+  /** The team whose unowned stories are eligible. */
+  teamName: string;
+  teamId: string;
+  readyStateName: string;
+  inProgressStateId: number;
+  /** Bartleby: SSH host, worker user, and its paths. */
+  host: string;
+  workerUser: string;
+  workDir: string;
+  mirrorDir: string;
+  binDir: string;
+  /** Repos a quick win may change, by short name, with their default branch. */
+  repos: Record<string, { project: string; defaultBranch: string }>;
 }
 
 export const DEFAULT_CONFIG: FridayConfig = {
@@ -34,6 +54,23 @@ export const DEFAULT_CONFIG: FridayConfig = {
   hours: { days: [1, 2, 3, 4, 5], start: '07:00', end: '18:00' },
   replyHeader: "🤖 Automated reply from Friday, Mike's review assistant",
   labels: { needsMike: 'needs-mike', gaveUp: 'bot-gave-up' },
+  quickWins: {
+    memberId: '', // set in ~/.friday/config.json, never committed
+    mentionName: '', // set in ~/.friday/config.json
+    teamName: 'Platform',
+    teamId: '6a63a096-7670-4997-9702-a873728d4e02',
+    readyStateName: 'Ready for Work',
+    inProgressStateId: 500000006,
+    host: 'bartleby.local',
+    workerUser: 'quickwin',
+    workDir: '/srv/quickwin/work',
+    mirrorDir: '/srv/quickwin/mirrors',
+    binDir: '/srv/quickwin/bin',
+    repos: {
+      ion: { project: 'metarouter/ion', defaultBranch: 'master' },
+      roost: { project: 'metarouter/roost', defaultBranch: 'master' },
+    },
+  },
 };
 
 export function loadConfig(): FridayConfig {
@@ -45,6 +82,7 @@ export function loadConfig(): FridayConfig {
     ...raw,
     hours: { ...DEFAULT_CONFIG.hours, ...(raw.hours ?? {}) },
     labels: { ...DEFAULT_CONFIG.labels, ...(raw.labels ?? {}) },
+    quickWins: { ...DEFAULT_CONFIG.quickWins, ...(raw.quickWins ?? {}) },
   };
 }
 

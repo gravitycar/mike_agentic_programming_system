@@ -163,6 +163,30 @@ There is no Step 20. The problem statement and the probe's Checks are the accept
 4. Set every Direct task that is not `done` to `deferred` (an `in_progress` one too). Never reopen a task.
 5. `config_set key="intake_outcome" value="full"`, then continue Initial Setup at step 5. The codebase research task also gets the `direct_attempt` diff.
 
+## Unattended Mode
+
+Friday's Quick Wins worker runs `/maps` with no person present (`docs/specs/14-quick-wins.md`). Unattended mode is on when the problem statement starts with `UNATTENDED:`. It changes these steps, and nothing else:
+
+1. **Never ask.** Do not use AskUserQuestion, and never wait for a reply. Wherever a step would ask the user, follow the rule below for that step instead.
+2. **Intake (Step 0).** Run the scope probe as usual. Take the probe's recommendation without asking. Continue only on **Direct**. On Full or Nothing, stop and report `QUICK_WIN_RESULT: stuck` with the probe's reason (see the result block below).
+3. **The work branch.** Do not create `maps/<epic-slug>`. The worker has already checked out the story branch; use the current branch as the work branch, and record its `HEAD` as the item base. The working tree must be clean except for paths under `.maps/` and `.claude/`.
+4. **Code review skill.** Detect it as usual. When it is unavailable, the Critic reviews natively.
+5. **Questions.** The Question Ladder runs as usual through levels 1 and 2. A question that reaches level 3 (the user) is not asked: stop and report `QUICK_WIN_RESULT: stuck`, naming the question.
+6. **Escalation from the Direct path.** When the Developer or the Critic escalates, do not offer Full. Stop and report `QUICK_WIN_RESULT: stuck` with the reason. Leave the commits on the branch; do not rename it.
+7. **Cypress (ion only).** After the last code review round, if the change touches anything a Cypress spec could exercise, choose the affected existing specs with the `mr-maps` Overlay 6 rule and run them with `/srv/quickwin/bin/quickwin-resync-ion.sh <spec> [<spec> ...]` (it resyncs the stack first). A failure enters the Direct path's fix loop and shares its 2-iteration limit.
+8. **The user review becomes the end of the run.** Instead of asking for the user review, write the MR title and description to `.maps/quick-win/mr.md` (first line: the title in the repo's `type(scope): subject` format; then a blank line; then the description, in the repo's MR template with the `mr-maps` Overlay 9 format: story link, at most two sentences on the epic's purpose if the story has an epic, at most two sentences on this MR's role, a list of changes, and Known limitations). Then report `QUICK_WIN_RESULT: ready`.
+9. **Never push, never open an MR, never merge.** Friday does the push, and opens the MR only on Mike's click.
+
+**The result block.** End the final message with these lines, then the usual ESCALATIONS block:
+
+```
+QUICK_WIN_RESULT: ready | stuck
+QUICK_WIN_BRANCH: <current branch>
+QUICK_WIN_REASON: <one line: what was done, or why it stopped>
+```
+
+On `stuck`, also list one ESCALATIONS line naming what Mike must decide.
+
 ## Main Loop
 
 After setup, enter the main workflow loop:

@@ -27,6 +27,8 @@ export interface ProcessSpec {
    * `friday` command runs outside the sandbox.
    */
   sandboxDomains?: string[];
+  /** Where the agent runs: unset for this Mac, or `bartleby` (the quickwin user, which holds no credentials). */
+  runsOn?: string;
   /** The mode a process starts in, before Mike changes it. */
   defaultMode: Mode;
   command?: string;
@@ -36,7 +38,7 @@ export interface ProcessSpec {
 const KEYS = new Set([
   'description', 'schedule', 'precheck', 'fan_out', 'max_parallel', 'cwd', 'model',
   'max_budget_usd', 'timeout', 'permission_mode', 'allowed_tools', 'disallowed_tools',
-  'outward_actions', 'mode', 'command', 'sandbox_domains',
+  'outward_actions', 'mode', 'command', 'sandbox_domains', 'runs_on',
 ]);
 
 /** Modes that skip permission checks are refused for every process. */
@@ -103,6 +105,7 @@ export function parseProcessFile(name: string, text: string): ProcessSpec {
     disallowedTools: list('disallowed_tools'),
     outwardActions: list('outward_actions'),
     sandboxDomains: 'sandbox_domains' in fm ? list('sandbox_domains') : undefined,
+    runsOn: str('runs_on') || undefined,
     defaultMode: mode,
     command,
     prompt,

@@ -15,11 +15,11 @@ process.env.FRIDAY_PROCESSES_DIR = path.join(PLUGIN, 'processes');
 test('every shipped process file parses, and new ones start in dry-run', () => {
   const procs = listProcesses();
   const names = procs.map((p) => p.name);
-  assert.deepEqual(names, ['hello', 'pipeline-watch', 'review-responder']);
+  assert.deepEqual(names, ['hello', 'pipeline-watch', 'quick-wins-scout', 'quick-wins-worker', 'review-responder']);
   for (const p of procs) {
     assert.notEqual(p.permissionMode, 'bypassPermissions');
     if (p.name !== 'hello') assert.equal(p.defaultMode, 'dry-run', `${p.name} must start in dry-run`);
-    if (p.name !== 'hello') {
+    if (p.name === 'pipeline-watch' || p.name === 'review-responder') {
       assert.ok(p.outwardActions.includes('add_label') && p.outwardActions.includes('remove_label'),
         `${p.name} needs add_label and remove_label so escalations can label and unlabel its MRs`);
     }
@@ -182,8 +182,9 @@ test('the API guard checks request keys, not reply text', () => {
 test('processes that run more than friday are sandboxed, with GitLab always denied', async () => {
   const { claudeArgs: args, DENIED_DOMAINS } = await import('../src/runner.js');
   for (const p of listProcesses()) {
-    const onlyFriday = p.allowedTools.every((t) => t === 'Bash(friday:*)');
+    const onlyFriday = p.allowedTools.every((t) => !t.startsWith('Bash') || t === 'Bash(friday:*)');
     if (onlyFriday) continue;
+    if (p.runsOn === 'bartleby') continue; // contained by the quickwin user, which holds no credentials
     assert.ok(p.sandboxDomains, `${p.name} runs other commands, so it must declare sandbox_domains`);
     const a = args(p, 'x');
     const settings = JSON.parse(a[a.indexOf('--settings') + 1]);

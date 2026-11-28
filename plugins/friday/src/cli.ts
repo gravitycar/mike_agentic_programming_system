@@ -14,6 +14,8 @@ import { pipelineWatchPrecheck } from './processes/pipeline-watch/precheck.js';
 import { jobLogTail, rebuildReviewEnv } from './processes/pipeline-watch/rebuild.js';
 import { reviewResponderPrecheck } from './processes/review-responder/precheck.js';
 import { runProcess } from './runner.js';
+import { offer, openMr, ruleOut, runWorker, SCOUT, scoutPrecheck, start } from './qw.js';
+import { Shortcut } from './shortcut.js';
 import { listProcesses, loadProcess, type Mode } from './spec.js';
 import { Store } from './store.js';
 import { pushBranch } from './worktrees.js';
@@ -72,7 +74,8 @@ async function main(argv: string[]): Promise<number> {
   // An agent may act, read GitLab, escalate, and settle its own session. It may
   // not change modes, schedules, or setup, or settle anything else.
   if (process.env.FRIDAY_AGENT === '1') {
-    const allowed = cmd === 'act' || cmd === 'gl' || cmd === 'escalate' || cmd === 'help' || (cmd === 'settle' && str(flags, 'cwd') !== undefined);
+    const scoutCmd = process.env.FRIDAY_PROCESS === SCOUT && ((cmd === 'qw' && (pos[0] === 'offer' || pos[0] === 'rule-out')) || cmd === 'sc');
+    const allowed = cmd === 'act' || cmd === 'gl' || cmd === 'escalate' || cmd === 'help' || scoutCmd || (cmd === 'settle' && str(flags, 'cwd') !== undefined);
     if (!allowed) throw new Error(`Friday agents may not run \`friday ${cmd}\`. Use act, gl, escalate, or settle --cwd.`);
   }
 
@@ -291,6 +294,7 @@ async function main(argv: string[]): Promise<number> {
         if (pos[0] === 'hello') items = [{ label: 'hello' }];
         else if (pos[0] === 'pipeline-watch') items = pipelineWatchPrecheck(store);
         else if (pos[0] === 'review-responder') items = reviewResponderPrecheck(store);
+        else if (pos[0] === SCOUT) items = await scoutPrecheck(store);
         else throw new Error(`No built-in precheck for ${pos[0]}`);
         if (items.length === 0) return 3;
         out({ items });
@@ -316,6 +320,43 @@ async function main(argv: string[]): Promise<number> {
         fs.writeFileSync(dest, r.stdout);
         out(`Saved ${dest}`);
       } else throw new Error('gl get|log|artifacts');
+      return 0;
+    }
+
+    case 'sc': {
+      const sc = new Shortcut();
+      if (pos[0] === 'search') {
+        const found = await sc.search(pos.slice(1).join(' '), Number(str(flags, 'max') ?? 50));
+        out(found.map((s) => ({ id: s.id, name: s.name, state: s.workflow_state_id, owners: s.owner_ids.length, type: s.story_type, created: s.created_at.slice(0, 10), url: s.app_url })));
+      } else if (pos[0] === 'story') {
+        const s = await sc.story(Number(pos[1]));
+        out({ id: s.id, name: s.name, state: s.workflow_state_id, owners: s.owner_ids.length, type: s.story_type, epic: s.epic_id, url: s.app_url, description: (s.description ?? '').slice(0, 4000) });
+      } else throw new Error('sc search <query> | sc story <id>');
+      return 0;
+    }
+
+    case 'qw': {
+      const store = new Store();
+      try {
+        if (pos[0] === 'offer') {
+          const id = offer(store, { story: Number(need(flags, 'story')), name: need(flags, 'name'), repo: need(flags, 'repo'), reason: need(flags, 'reason'), duplicates: str(flags, 'duplicates') });
+          out(`Offered as inbox item #${id}.`);
+        } else if (pos[0] === 'rule-out') {
+          ruleOut(store, { story: Number(need(flags, 'story')), name: str(flags, 'name'), reason: need(flags, 'reason') });
+          out('Ruled out.');
+        } else if (pos[0] === 'start') {
+          out(start(store, Number(pos[1])));
+        } else if (pos[0] === 'open-mr') {
+          out(await openMr(store, Number(pos[1])));
+        } else if (pos[0] === 'run-worker') {
+          out(await runWorker(store, Number(pos[1])));
+        } else if (pos[0] === 'status') {
+          const rows = store.db.prepare('SELECT story_id, state, repo, branch, reason, updated_at FROM quickwins ORDER BY updated_at DESC LIMIT 20').all();
+          out(rows);
+        } else throw new Error('qw offer|rule-out|start <item>|open-mr <item>|run-worker <story>|status');
+      } finally {
+        store.close();
+      }
       return 0;
     }
 

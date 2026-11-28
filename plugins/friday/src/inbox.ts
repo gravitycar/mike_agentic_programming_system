@@ -58,7 +58,11 @@ export function mrUrl(project: string, mr: number): string {
 export function raise(
   store: Store,
   actor: Actor | null,
-  e: ParsedEscalation & { process: string; sessionId: string | null; cwd: string | null; mode: Mode },
+  e: ParsedEscalation & {
+    process: string; sessionId: string | null; cwd: string | null; mode: Mode;
+    /** Inbox kind (default escalation), its subject id, the host its session lives on, and a link. */
+    kind?: string; ref?: string | null; host?: string | null; link?: string | null;
+  },
   cfg: FridayConfig = loadConfig()
 ): number {
   const dup = store.openFor({ process: e.process, project: e.project ?? undefined, mr: e.mr ?? undefined, subject: e.subject ?? undefined });
@@ -67,12 +71,15 @@ export function raise(
     process: e.process,
     project: e.project,
     mr: e.mr,
-    mr_url: e.project && e.mr ? mrUrl(e.project, e.mr) : null,
+    mr_url: e.link ?? (e.project && e.mr ? mrUrl(e.project, e.mr) : null),
     subject: e.subject,
     summary: e.summary,
     session_id: e.sessionId,
     cwd: e.cwd,
     mode: e.mode,
+    kind: e.kind ?? 'escalation',
+    ref: e.ref ?? null,
+    host: e.host ?? null,
   });
   if (e.mode === 'live') {
     if (actor && e.project && e.mr) {
@@ -124,12 +131,26 @@ export function swiftbarMenu(escs: Escalation[], bin = FRIDAY_BIN, now = Date.no
   lines.push('---');
   if (escs.length === 0) lines.push('Friday: nothing needs you');
   for (const e of escs) {
-    const where = e.project && e.mr ? `${e.project.split('/').pop()}!${e.mr}` : 'general';
+    const where = e.project && e.mr ? `${e.project.split('/').pop()}!${e.mr}` : e.kind?.startsWith('qw-') ? 'quick win' : 'general';
     const tag = e.mode === 'dry-run' ? '[dry run] ' : '';
     const label = clean(`${tag}${where} · ${e.summary}`).slice(0, 110);
-    lines.push(`${label} (${age(e.raised_at, now)}) | bash=${bin} param1=resume param2=${e.id} terminal=false`);
-    lines.push(`--${clean(e.process)}: ${clean(e.summary)} | disabled=true`);
-    if (e.mr_url) lines.push(`--Open MR | href=${e.mr_url}`);
+    const resume = `bash=${bin} param1=resume param2=${e.id} terminal=false`;
+    if (e.kind === 'qw-candidate') {
+      lines.push(`${label} (${age(e.raised_at, now)}) | href=${e.mr_url}`);
+      lines.push(`--${clean(e.summary)} | disabled=true`);
+      lines.push(`--Start | bash=${bin} param1=qw param2=start param3=${e.id} terminal=false refresh=true`);
+      lines.push(`--Open story | href=${e.mr_url}`);
+    } else if (e.kind === 'qw-ready') {
+      lines.push(`${label} (${age(e.raised_at, now)}) | ${resume}`);
+      lines.push(`--${clean(e.summary)} | disabled=true`);
+      lines.push(`--Open MR | bash=${bin} param1=qw param2=open-mr param3=${e.id} terminal=false refresh=true`);
+      lines.push(`--Resume (inspect the work first) | ${resume}`);
+      if (e.mr_url) lines.push(`--Open branch | href=${e.mr_url}`);
+    } else {
+      lines.push(`${label} (${age(e.raised_at, now)}) | ${resume}`);
+      lines.push(`--${clean(e.process)}: ${clean(e.summary)} | disabled=true`);
+      if (e.mr_url) lines.push(`--${e.kind === 'qw-stuck' ? 'Open story' : 'Open MR'} | href=${e.mr_url}`);
+    }
     lines.push(`--Dismiss | bash=${bin} param1=settle param2=${e.id} param3=--reason param4=dismissed terminal=false refresh=true`);
   }
   lines.push('---');
@@ -146,7 +167,10 @@ export function resume(e: Escalation): void {
     if (e.mr_url) run('open', [e.mr_url]);
     return;
   }
-  const cmd = `cd ${shq(e.cwd)} && claude --resume ${shq(e.session_id)}`;
+  const local = `cd ${shq(e.cwd)} && claude --resume ${shq(e.session_id)}`;
+  // A session on Bartleby belongs to the worker user; resume it there over SSH.
+  const user = loadConfig().quickWins.workerUser;
+  const cmd = e.host ? `ssh -t ${e.host} ${shq(`sudo -u ${user} -H bash -lc ${shq(local)}`)}` : local;
   const esc = cmd.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   run('osascript', ['-e', `tell application "Terminal" to do script "${esc}"`, '-e', 'tell application "Terminal" to activate']);
 }
