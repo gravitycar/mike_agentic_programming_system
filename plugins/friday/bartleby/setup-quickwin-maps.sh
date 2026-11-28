@@ -24,11 +24,13 @@ sudo -n -u quickwin -H bash -lc "cd '$M' && npm ci --no-audit --no-fund --loglev
 for repo in ion roost; do
   W=/srv/quickwin/work/$repo
   sudo -n -u quickwin -H bash -lc "
-    mkdir -p '$W/.claude'
-    rm -rf '$W/.claude/agents' '$W/.claude/commands'
-    cp -r '$M/.claude/agents' '$M/.claude/commands' '$W/.claude/'
+    mkdir -p '$W/.claude/agents' '$W/.claude/commands'
+    cp '$M'/.claude/agents/*.md '$W/.claude/agents/'
+    cp '$M'/.claude/commands/*.md '$W/.claude/commands/'
+    # Never change a file the repo itself tracks (roost commits its own agents).
+    git -C '$W' checkout -- .claude 2>/dev/null || true
     EX=\$(git -C '$W' rev-parse --git-common-dir)/info/exclude
-    cd '$W' && for p in .maps/ .claude/; do grep -qxF \"\$p\" \"\$EX\" || echo \"\$p\" >> \"\$EX\"; done
+    cd '$W' && for p in .maps/ .claude/ '.yarn/cache/*-linux-*'; do grep -qxF \"\$p\" \"\$EX\" || echo \"\$p\" >> \"\$EX\"; done
     git -C '$W' status --short | head -3
   " < /dev/null
 done
